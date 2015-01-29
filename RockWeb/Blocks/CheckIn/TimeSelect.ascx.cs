@@ -48,13 +48,49 @@ namespace RockWeb.Blocks.CheckIn
                 if ( !Page.IsPostBack )
                 {
                     ClearSelection();
+                    SetSelectedPeopleInHiddenList();
+                    SetupSelectionScreenForNextPerson();
+                }
+            }
+        }
 
+        /// <summary>
+        /// Set each selected person into the list of people to be processed.
+        /// This is a queue that will drain as we process each person.
+        /// </summary>
+        private void SetSelectedPeopleInHiddenList()
+        {
+            var ids = CurrentCheckInState.CheckIn.Families.Where( f => f.Selected )
+                        .SelectMany( f => f.People.Where( p => p.Selected ) )
+                        .Select( p => p.Person.Id.ToString() ).ToArray();
+
+            hfPeopleToProcess.Value = string.Join( ",", ids );
+        }
+
+        /// <summary>
+        /// Builds the selection screen for the next person who needs it
+        /// and returns how many people remain to be processed.
+        /// When no more remain it will call ProcessSelection()
+        /// </summary>
+        private void SetupSelectionScreenForNextPerson()
+        {
+            // if there are people to process, then process them
+            if ( !string.IsNullOrEmpty( hfPeopleToProcess.Value ) )
+            {
+                Queue<string> ids = new Queue<string>( hfPeopleToProcess.Value.SplitDelimitedValues() );
+
+                // Process each person in the stack until there are no more.
+                while ( ids.Count > 0 )
+                {
+                    int personId = ids.Dequeue().AsInteger();
+                    hfPeopleToProcess.Value = string.Join( ",", ids );
+                    hfPerson.Value = personId.ToString();
                     CheckInPerson person = null;
                     CheckInGroup group = null;
                     CheckInLocation location = null;
 
                     person = CurrentCheckInState.CheckIn.Families.Where( f => f.Selected )
-                        .SelectMany( f => f.People.Where( p => p.Selected ) )
+                        .SelectMany( f => f.People.Where( p => p.Selected && p.Person.Id == personId ) )
                         .FirstOrDefault();
 
                     if ( person != null )
@@ -82,7 +118,6 @@ namespace RockWeb.Blocks.CheckIn
                     if ( availSchedules.Count == 1 )
                     {
                         availSchedules.FirstOrDefault().Selected = true;
-                        ProcessSelection( maWarning );
                     }
                     else
                     {
@@ -110,9 +145,13 @@ namespace RockWeb.Blocks.CheckIn
 
                         rSelection.DataSource = availSchedules.OrderBy( s => s.StartTime );
                         rSelection.DataBind();
+                        return;
                     }
                 }
             }
+
+            // No more people, then continue to next step
+            ProcessSelection( maWarning );
         }
 
         /// <summary>
@@ -140,12 +179,15 @@ namespace RockWeb.Blocks.CheckIn
                 }
             }
         }
+
         protected void lbSelect_Click( object sender, EventArgs e )
         {
             if ( KioskCurrentlyActive )
             {
+                var personId = hfPerson.ValueAsInt();
+
                 var location = CurrentCheckInState.CheckIn.Families.Where( f => f.Selected )
-                    .SelectMany( f => f.People.Where( p => p.Selected )
+                    .SelectMany( f => f.People.Where( p => p.Selected && p.Person.Id == personId )
                         .SelectMany( p => p.GroupTypes.Where( t => t.Selected )
                             .SelectMany( t => t.Groups.Where( g => g.Selected ) 
                                 .SelectMany( g => g.Locations.Where( l => l.Selected ) ) ) ) )
@@ -156,14 +198,15 @@ namespace RockWeb.Blocks.CheckIn
                     foreach( var scheduleId in hfTimes.Value.SplitDelimitedValues())
                     {
                         int id = Int32.Parse( scheduleId );
-                        var schedule = location.Schedules.Where( s => s.Schedule.Id == id).FirstOrDefault();
+                        var schedule = location.Schedules.Where( s => s.Schedule.Id == id ).FirstOrDefault();
                         if (schedule != null)
                         {
                             schedule.Selected = true;
                         }
                     }
 
-                    ProcessSelection( maWarning );
+                    SetupSelectionScreenForNextPerson();
+                    //ProcessSelection( maWarning );
                 }
             }
         }

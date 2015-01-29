@@ -17,9 +17,11 @@
                 <div class="control-group checkin-body-container">
                     <label class="control-label">Select Person</label>
                     <div class="controls">
-                        <asp:Repeater ID="rSelection" runat="server" OnItemCommand="rSelection_ItemCommand" OnItemDataBound="rSelection_ItemDataBound">
+                        <asp:HiddenField ID="hfSelectedPeopleIds" runat="server" /><%--OnItemCommand="rSelection_ItemCommand" --%>
+                        <asp:Repeater ID="rSelection" runat="server" OnItemDataBound="rSelection_ItemDataBound">
                             <ItemTemplate>
-                                <Rock:BootstrapButton ID="lbSelect" runat="server" Text='<%# Container.DataItem.ToString() %>' CommandArgument='<%# Eval("Person.Id") %>' CssClass="btn btn-primary btn-large btn-block btn-checkin-select" DataLoadingText="Loading..." />
+                                <asp:LinkButton ID="lbSelect" runat="server" Text='<%# Container.DataItem.ToString() %>' CommandArgument='<%# Eval("Person.Id") %>' CssClass="js-dataButton btn btn-default btn-large btn-block btn-checkin-select" DataLoadingText="Loading..." />
+                                <input type="hidden" id="ihPersonId" runat="server" Value='<%# Eval("Person.Id") %>' />
                             </ItemTemplate>
                         </asp:Repeater>
                     </div>
@@ -31,11 +33,11 @@
     </div>
         
    
-
     <div class="checkin-footer">   
         <div class="checkin-actions">
             <asp:LinkButton CssClass="btn btn-default" ID="lbBack" runat="server" OnClick="lbBack_Click" Text="Back" />
             <asp:LinkButton CssClass="btn btn-default" ID="lbCancel" runat="server" OnClick="lbCancel_Click" Text="Cancel" />
+            <asp:LinkButton CssClass="btn btn-default pull-right disabled" ID="lbNext" runat="server" OnClick="lbNext_Click" Text="Next" />
         </div>
     </div>
 

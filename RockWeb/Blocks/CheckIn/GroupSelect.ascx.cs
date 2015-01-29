@@ -48,12 +48,49 @@ namespace RockWeb.Blocks.CheckIn
                 if ( !Page.IsPostBack )
                 {
                     ClearSelection();
+                    SetSelectedPeopleInHiddenList();
+                    SetupSelectionScreenForNextPerson();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Set each selected person into the list of people to be processed.
+        /// This is a queue that will drain as we process each person.
+        /// </summary>
+        private void SetSelectedPeopleInHiddenList()
+        {
+            var ids = CurrentCheckInState.CheckIn.Families.Where( f => f.Selected )
+                        .SelectMany( f => f.People.Where( p => p.Selected ) )
+                        .Select( p => p.Person.Id.ToString() ).ToArray();
+
+            hfPeopleToProcess.Value = string.Join( ",", ids );
+        }
+
+        /// <summary>
+        /// Builds the selection screen for the next person who needs it
+        /// and returns how many people remain to be processed.
+        /// When no more remain it will call ProcessSelection()
+        /// </summary>
+        private void SetupSelectionScreenForNextPerson()
+        {
+            // if there are people to process, then process them
+            if ( !string.IsNullOrEmpty( hfPeopleToProcess.Value ) )
+            {
+                Queue<string> ids = new Queue<string>( hfPeopleToProcess.Value.SplitDelimitedValues() );
+
+                // Process each person in the stack until there are no more.
+                while ( ids.Count > 0 )
+                {
+                    int personId = ids.Dequeue().AsInteger();
+                    hfPeopleToProcess.Value = string.Join( ",", ids );
+                    hfPerson.Value = personId.ToString();
 
                     CheckInPerson person = null;
                     CheckInGroupType groupType = null;
 
                     person = CurrentCheckInState.CheckIn.Families.Where( f => f.Selected )
-                        .SelectMany( f => f.People.Where( p => p.Selected ) )
+                        .SelectMany( f => f.People.Where( p => p.Selected && p.Person.Id == personId ) )
                         .FirstOrDefault();
 
                     if ( person != null )
@@ -70,7 +107,7 @@ namespace RockWeb.Blocks.CheckIn
                     lTitle.Text = person.ToString();
                     lSubTitle.Text = groupType.ToString();
 
-                    var availGroups = groupType.Groups.Where( g => !g.ExcludedByFilter).ToList();
+                    var availGroups = groupType.Groups.Where( g => !g.ExcludedByFilter ).ToList();
                     if ( availGroups.Count == 1 )
                     {
                         if ( UserBackedUp )
@@ -80,16 +117,19 @@ namespace RockWeb.Blocks.CheckIn
                         else
                         {
                             availGroups.FirstOrDefault().Selected = true;
-                            ProcessSelection();
                         }
                     }
                     else
                     {
                         rSelection.DataSource = availGroups;
                         rSelection.DataBind();
+                        return;
                     }
                 }
             }
+
+            // No more people, then continue to next step
+            ProcessSelection();
         }
 
         /// <summary>
@@ -116,8 +156,10 @@ namespace RockWeb.Blocks.CheckIn
         {
             if ( KioskCurrentlyActive )
             {
+                var personId = hfPerson.ValueAsInt();
+
                 var groupType = CurrentCheckInState.CheckIn.Families.Where( f => f.Selected )
-                    .SelectMany( f => f.People.Where( p => p.Selected ) 
+                    .SelectMany( f => f.People.Where( p => p.Selected & p.Person.Id == personId ) 
                         .SelectMany( p => p.GroupTypes.Where( t => t.Selected ) ) )
                     .FirstOrDefault();
 
@@ -128,7 +170,7 @@ namespace RockWeb.Blocks.CheckIn
                     if ( group != null )
                     {
                         group.Selected = true;
-                        ProcessSelection();
+                        SetupSelectionScreenForNextPerson();
                     }
                 }
             }

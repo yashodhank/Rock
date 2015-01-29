@@ -96,6 +96,30 @@ namespace RockWeb.Blocks.CheckIn
             }
         }
 
+        protected void SetSelectedPeople()
+        {
+            if ( KioskCurrentlyActive )
+            {
+                // Get ids from hidden field
+                var ids = hfSelectedPeopleIds.Value.Split(',');
+
+                foreach ( var person in CurrentCheckInState.CheckIn.Families.Where( f => f.Selected )
+                    .SelectMany ( f => f.People ))
+                {
+                    if ( ids.Contains( person.Person.Id.ToString() ) )
+                    {
+                        person.Selected = true;
+                    }
+                }
+
+                if ( ids != null )
+                {
+                    // person.Selected = true;
+                    ProcessSelection();
+                }
+            }
+        }
+
         protected void rSelection_ItemCommand( object source, RepeaterCommandEventArgs e )
         {
             if ( KioskCurrentlyActive )
@@ -143,5 +167,9 @@ namespace RockWeb.Blocks.CheckIn
                 "<ul><li>Sorry, based on your selection, there are currently not any available locations that can be checked into.</li></ul>" );
         }
 
-    }
+        protected void lbNext_Click( object sender, EventArgs e )
+        {
+            SetSelectedPeople();
+        }
+}
 }

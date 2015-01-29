@@ -16,6 +16,8 @@
                 <div class="control-group checkin-time-select" style="margin: 0 auto">
                     <h1>Select Time(s)</h1>
                     <div class="controls checkin-timelist btn-group" data-toggle="buttons-checkbox">
+                        <asp:HiddenField ID="hfPeopleToProcess" runat="server" />
+                        <asp:HiddenField ID="hfPerson" runat="server" />
                         <asp:Repeater ID="rSelection" runat="server">
                             <ItemTemplate>
                                 <button type="button" schedule-id='<%# Eval("Schedule.Id") %>' class="btn btn-default btn-lg btn-checkbox">

@@ -16,6 +16,8 @@
                 <div class="control-group checkin-body-container">
                     <label class="control-label">Select Location</label>
                     <div class="controls">
+                        <asp:HiddenField ID="hfPeopleToProcess" runat="server" />
+                        <asp:HiddenField ID="hfPerson" runat="server" />
                         <asp:Repeater ID="rSelection" runat="server" OnItemCommand="rSelection_ItemCommand">
                             <ItemTemplate>
                                 <Rock:BootstrapButton ID="lbSelect" runat="server" CommandArgument='<%# Eval("Location.Id") %>' CssClass="btn btn-primary btn-large btn-block btn-checkin-select" DataLoadingText="Loading..." ><%# Container.DataItem.ToString() %><%# FormatCount( (int)Eval("Location.Id") ) %></Rock:BootstrapButton>
