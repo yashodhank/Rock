@@ -287,6 +287,11 @@ namespace RockWeb
         /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void Application_BeginRequest( object sender, EventArgs e )
         {
+            if ( Context.Cache["RockExceptionOrder"] == "66" && Context.Cache["RockLastException"] != null)
+            {
+                throw ( Context.Cache["RockLastException"] as Exception );
+            }
+             
             if ( string.IsNullOrWhiteSpace( Global.BaseUrl ) )
             {
                 if ( Context.Request.Url != null )
@@ -321,6 +326,24 @@ namespace RockWeb
                 if ( context != null )
                 {
                     var ex = context.Server.GetLastError();
+                    
+                    // if an error66 occurred on startup and there isn't a Request yet, clear the error and let Application_BeginRequest rethrow it so that we have a Request that will get redirected to the error page
+                    if ( context.Cache != null )
+                    {
+                        if ( context.Cache["RockExceptionOrder"] == "66" )
+                        {
+                            try
+                            {
+                                // this will throw an exception if we don't have a request;
+                                var request = context.Request;
+                            }
+                            catch
+                            {
+                                context.Server.ClearError();
+                            }
+                            
+                        }
+                    }
 
                     SendNotification( ex );
 
