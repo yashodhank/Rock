@@ -21,7 +21,7 @@ using System.Net;
 using System.Net.Http;
 using System.ServiceModel.Channels;
 using System.Web.Http;
-using System.Web.Http.OData;
+using System.Web.OData;
 
 using Rock.Data;
 using Rock.Model;
@@ -31,7 +31,7 @@ using Rock.Security;
 namespace Rock.Rest
 {
     /*
-     * NOTE: We could have inherited from System.Web.Http.OData.ODataController, but that changes 
+     * NOTE: We could have inherited from System.Web.OData.ODataController, but that changes 
      * the response format from vanilla REST to OData format. That breaks existing Rock Rest clients.
      * 
      */

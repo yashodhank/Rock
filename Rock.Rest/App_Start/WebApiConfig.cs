@@ -21,8 +21,8 @@ using System.Reflection;
 using System.Runtime.Serialization;
 using System.Web.Http;
 using System.Web.Http.ExceptionHandling;
-using System.Web.Http.OData.Builder;
-using System.Web.Http.OData.Extensions;
+using System.Web.OData.Builder;
+using System.Web.OData.Extensions;
 using System.Web.Routing;
 
 using Rock;
@@ -227,23 +227,35 @@ namespace Rock.Rest
 
             foreach ( var entityType in entityTypeList )
             {
-                var entityTypeConfig = builder.AddEntity( entityType );
                 
-                var tableAttribute = entityType.GetCustomAttribute<TableAttribute>();
-                string name;
-                if ( tableAttribute != null )
-                {
-                    name = tableAttribute.Name.Pluralize();
-                }
-                else
-                {
-                    name = entityType.Name.Pluralize();
-                }
+                    var entityTypeConfig = builder.AddEntityType( entityType );
 
-                var entitySetConfig = builder.AddEntitySet( name, entityTypeConfig );
+                    var unmappedProperties = entityType.GetProperties().Where( a => a.GetCustomAttribute<NotMappedAttribute>() != null );
+                    foreach (var unmappedProperty in unmappedProperties)
+                    {
+                        entityTypeConfig.RemoveProperty(unmappedProperty);
+                    }
+                    
+
+                    var tableAttribute = entityType.GetCustomAttribute<TableAttribute>();
+                    string name;
+                    if ( tableAttribute != null )
+                    {
+                        name = tableAttribute.Name.Pluralize();
+                    }
+                    else
+                    {
+                        name = entityType.Name.Pluralize();
+                    }
+
+
+                    var entitySetConfig = builder.AddEntitySet( name, entityTypeConfig );
+                    
             }
 
-            config.Routes.MapODataServiceRoute( "api", "api", builder.GetEdmModel() );
+            var edmModel = builder.GetEdmModel();
+
+            config.MapODataServiceRoute( "api", "api", edmModel );
         }
     }
 }

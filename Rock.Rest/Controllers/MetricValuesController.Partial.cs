@@ -19,7 +19,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Web.Http;
-using System.Web.Http.OData;
+using System.Web.OData;
 using System.Web.Routing;
 using Rock.Data;
 using Rock.Model;

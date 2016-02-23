@@ -24,7 +24,7 @@ using System.Net.Http.Headers;
 using System.Reflection;
 using System.ServiceModel.Channels;
 using System.Web.Http;
-using System.Web.Http.OData;
+using System.Web.OData;
 
 using Rock;
 using Rock.Data;

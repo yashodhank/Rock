@@ -18,7 +18,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Web.Http;
-using System.Web.Http.OData;
+using System.Web.OData;
 
 using Rock.Data;
 using Rock.Model;
@@ -69,7 +69,7 @@ namespace Rock.Rest.Controllers
         /// </summary>
         /// <param name="prayerId">The prayer identifier.</param>
         /// <param name="personAliasId">The person alias identifier.</param>
-        /// <exception cref="System.Web.Http.OData.IEdmEntityObject"></exception>
+        /// <exception cref="System.Web.OData.IEdmEntityObject"></exception>
         [Authenticate, Secured]
         [HttpPut]
         [System.Web.Http.Route( "api/PrayerRequests/Prayed/{prayerId}/{personAliasId}" )]
@@ -94,7 +94,7 @@ namespace Rock.Rest.Controllers
         /// Flags the specified prayer request.
         /// </summary>
         /// <param name="id">The identifier.</param>
-        /// <exception cref="System.Web.Http.OData.IEdmEntityObject"></exception>
+        /// <exception cref="System.Web.OData.IEdmEntityObject"></exception>
         [Authenticate, Secured]
         [HttpPut]
         [System.Web.Http.Route( "api/PrayerRequests/Flag/{id}" )]
@@ -121,7 +121,7 @@ namespace Rock.Rest.Controllers
         /// Increment the prayer count for a prayer request
         /// </summary>
         /// <param name="id">The prayer identifier.</param>
-        /// <exception cref="System.Web.Http.OData.IEdmEntityObject"></exception>
+        /// <exception cref="System.Web.OData.IEdmEntityObject"></exception>
         [Authenticate, Secured]
         [HttpPut]
         [System.Web.Http.Route( "api/PrayerRequests/Prayed/{id}" )]

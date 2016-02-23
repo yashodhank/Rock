@@ -93,6 +93,7 @@ namespace Rock.Model
         ///  A <see cref="System.Collections.Generic.Dictionary&lt;String,String&gt;"/> of <see cref="System.String"/> objects containing additional merge values for the <see cref="Rock.Model.EntitySetItem"/>
         /// </value>
         [DataMember]
+        [NotMapped]
         public virtual Dictionary<string, object> AdditionalMergeValues
         {
             get { return _additionalMergeValues; }

@@ -23,7 +23,7 @@ using System.Net.Http;
 using System.Text;
 using System.Web;
 using System.Web.Http;
-using System.Web.Http.OData;
+using System.Web.OData;
 using Rock.Data;
 using Rock.Model;
 using Rock.Rest.Filters;
