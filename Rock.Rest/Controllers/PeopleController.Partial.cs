@@ -55,7 +55,7 @@ namespace Rock.Rest.Controllers
 
         // GET api/<controller>(5)
         [Authenticate, Secured]
-        [EnableQuery]
+        [RockEnableQuery]
         public override Person Get( [FromODataUri] int key )
         {
             // NOTE: We want PrimaryAliasId to be populated, so call this.GetById( key ) which includes "Aliases"
@@ -69,7 +69,7 @@ namespace Rock.Rest.Controllers
         /// A queryable collection of Person records that matches the supplied Odata query.
         /// </returns>
         [Authenticate, Secured]
-        [EnableQuery]
+        [RockEnableQuery]
         public override IQueryable<Person> Get()
         {
             // NOTE: We want PrimaryAliasId to be populated, so include Aliases
@@ -82,7 +82,7 @@ namespace Rock.Rest.Controllers
         /// <param name="includeDeceased">if set to <c>true</c> [include deceased].</param>
         /// <returns></returns>
         [Authenticate, Secured]
-        [EnableQuery]
+        [RockEnableQuery]
         public IQueryable<Person> Get( bool includeDeceased )
         {
             var rockContext = this.Service.Context as RockContext;

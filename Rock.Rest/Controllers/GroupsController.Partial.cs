@@ -145,7 +145,7 @@ namespace Rock.Rest.Controllers
         /// <param name="personId">The person identifier.</param>
         /// <returns></returns>
         [Authenticate, Secured]
-        [EnableQuery( MaxExpansionDepth = 4 )]
+        [RockEnableQuery( MaxExpansionDepth = 4 )]
         [HttpGet]
         [System.Web.Http.Route( "api/Groups/GetFamilies/{personId}" )]
         public IQueryable<Group> GetFamilies( int personId )

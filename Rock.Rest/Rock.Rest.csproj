@@ -278,6 +278,7 @@
     <Compile Include="Handler\RockApiExceptionLogger.cs" />
     <Compile Include="IHasCustomRoutes.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="RockEnableQueryAttribute.cs" />
     <Compile Include="Utility\HttpRequestMessageExtensions.cs" />
   </ItemGroup>
   <ItemGroup>

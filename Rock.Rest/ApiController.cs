@@ -70,7 +70,7 @@ namespace Rock.Rest
 
         // GET api/<controller>
         [Authenticate, Secured]
-        [EnableQuery]
+        [RockEnableQueryAttribute]
         public virtual IQueryable<T> Get()
         {
             var result = Service.Queryable();
@@ -93,7 +93,7 @@ namespace Rock.Rest
 
         // GET api/<controller>(5)
         [Authenticate, Secured]
-        [EnableQuery]
+        [RockEnableQueryAttribute]
         public virtual T Get( [FromODataUri] int key )
         {
             T model;
@@ -322,7 +322,7 @@ namespace Rock.Rest
         /// <returns></returns>
         [Authenticate, Secured]
         [ActionName( "DataView" )]
-        [EnableQuery]
+        [RockEnableQueryAttribute]
         public IQueryable<T> GetDataView( int id )
         {
             var dataView = new DataViewService( new RockContext() ).Get( id );

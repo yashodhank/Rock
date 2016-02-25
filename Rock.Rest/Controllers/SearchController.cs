@@ -18,6 +18,7 @@ using System.Linq;
 using System.Net;
 using System.Web.Http;
 using System.Web.OData;
+using Rock.Rest;
 using Rock.Rest.Filters;
 
 namespace Rock.Controllers
@@ -30,7 +31,7 @@ namespace Rock.Controllers
         // GET api/<controller>
         [Authenticate, Secured]
         [System.Web.Http.Route( "api/search" )]
-        [EnableQuery]
+        [RockEnableQuery]
         public IQueryable<string> Get()
         {
             string queryString = Request.RequestUri.Query;

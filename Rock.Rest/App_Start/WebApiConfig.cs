@@ -15,6 +15,7 @@
 // </copyright>
 //
 using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
 using System.Reflection;
@@ -24,8 +25,7 @@ using System.Web.Http.ExceptionHandling;
 using System.Web.OData.Builder;
 using System.Web.OData.Extensions;
 using System.Web.Routing;
-
-using Rock;
+using Microsoft.OData.Edm;
 
 namespace Rock.Rest
 {
@@ -34,6 +34,11 @@ namespace Rock.Rest
     /// </summary>
     public static class WebApiConfig
     {
+        /// <summary>
+        /// Compiled Model that is used to create the OData Routes and Process Queries (see RockEnableQueryAttribute)
+        /// </summary>
+        public static IEdmModel EdmModel = null;
+
         /// <summary>
         /// Maps ODataService Route and registers routes for any controller actions that use a [Route] attribute
         /// </summary>
@@ -218,44 +223,40 @@ namespace Rock.Rest
                     controllerName = new Rock.Rest.Constraints.ValidControllerNameConstraint()
                 } );
 
-            // build OData model and create service route (mainly for metadata)
+            // build OData model and create service route
             ODataConventionModelBuilder builder = new ODataConventionModelBuilder();
-
+            
             var entityTypeList = Reflection.FindTypes( typeof( Rock.Data.IEntity ) )
                 .Where( a => !a.Value.IsAbstract && ( a.Value.GetCustomAttribute<NotMappedAttribute>() == null ) && ( a.Value.GetCustomAttribute<DataContractAttribute>() != null ) )
                 .OrderBy( a => a.Key ).Select( a => a.Value );
 
             foreach ( var entityType in entityTypeList )
             {
-                
-                    var entityTypeConfig = builder.AddEntityType( entityType );
+                var entityTypeConfig = builder.AddEntityType( entityType );
 
-                    var unmappedProperties = entityType.GetProperties().Where( a => a.GetCustomAttribute<NotMappedAttribute>() != null );
-                    foreach (var unmappedProperty in unmappedProperties)
-                    {
-                        entityTypeConfig.RemoveProperty(unmappedProperty);
-                    }
-                    
+                // OData 4 convention is to treat all IDictionary<string, object> properties as special "Open Types", we don't want OData to do that!
+                var odataDynamicProperties = entityType.GetProperties().Where( p => typeof( IDictionary<string, object> ).IsAssignableFrom( p.PropertyType ) );
+                foreach ( var odataDynamicProperty in odataDynamicProperties )
+                {
+                    entityTypeConfig.RemoveProperty( odataDynamicProperty );
+                }
 
-                    var tableAttribute = entityType.GetCustomAttribute<TableAttribute>();
-                    string name;
-                    if ( tableAttribute != null )
-                    {
-                        name = tableAttribute.Name.Pluralize();
-                    }
-                    else
-                    {
-                        name = entityType.Name.Pluralize();
-                    }
+                var tableAttribute = entityType.GetCustomAttribute<TableAttribute>();
+                string name;
+                if ( tableAttribute != null )
+                {
+                    name = tableAttribute.Name.Pluralize();
+                }
+                else
+                {
+                    name = entityType.Name.Pluralize();
+                }
 
-
-                    var entitySetConfig = builder.AddEntitySet( name, entityTypeConfig );
-                    
+                var entitySetConfig = builder.AddEntitySet( name, entityTypeConfig );
             }
-
-            var edmModel = builder.GetEdmModel();
-
-            config.MapODataServiceRoute( "api", "api", edmModel );
+            
+            WebApiConfig.EdmModel = builder.GetEdmModel();
+            config.MapODataServiceRoute( "api", "api", WebApiConfig.EdmModel );
         }
     }
 }

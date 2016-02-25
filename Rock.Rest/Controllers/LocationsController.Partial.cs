@@ -63,7 +63,7 @@ namespace Rock.Rest.Controllers
         /// <returns></returns>
         /// <exception cref="System.Web.Http.HttpResponseException"></exception>
         [Authenticate, Secured]
-        [EnableQuery]
+        [RockEnableQuery]
         [HttpGet]
         [System.Web.Http.Route( "api/locations/{street}/{city}/{state}/{postalCode}" )]
         public Location Get( string street, string city, string state, string postalCode )

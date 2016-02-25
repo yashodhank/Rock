@@ -33,7 +33,7 @@ namespace Rock.Rest.Controllers
     {
         [Authenticate, Secured]
         [HttpGet]
-        [EnableQuery]
+        [RockEnableQuery]
         [System.Web.Http.Route( "api/PrayerRequests/Public" )]
         public IQueryable<PrayerRequest> Public()
         {
@@ -55,7 +55,7 @@ namespace Rock.Rest.Controllers
         /// <returns></returns>
         [Authenticate, Secured]
         [HttpGet]
-        [EnableQuery]
+        [RockEnableQuery]
         [System.Web.Http.Route( "api/PrayerRequests/GetByCategory/{categoryId}" )]
         public IQueryable<PrayerRequest> GetByCategory( int categoryId )
         {

@@ -41,7 +41,7 @@ namespace Rock.Rest.Controllers
         /// <param name="metricValueType">Type of the metric value.</param>
         /// <returns></returns>
         [Authenticate, Secured]
-        [EnableQuery]
+        [RockEnableQuery]
         [System.Web.Http.Route( "api/MetricValues/GetByMetricId/{metricId}" )]
         public IQueryable<MetricValue> GetByMetricId( int metricId, MetricValueType? metricValueType = null )
         {
