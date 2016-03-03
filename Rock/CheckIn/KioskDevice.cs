@@ -215,7 +215,7 @@ namespace Rock.CheckIn
                             .ForEach( c => campusLocations.Add( c.CampusId, c.LocationId ) );
 
                         var deviceModel = new DeviceService( rockContext )
-                            .Queryable( "Locations" ).AsNoTracking()
+                            .Queryable().AsNoTracking()
                             .Where( d => d.Id == id )
                             .FirstOrDefault();
 
@@ -286,8 +286,7 @@ namespace Rock.CheckIn
             if ( campusId == 0 )
             {
                 foreach ( var parentLocationId in new LocationService( rockContext )
-                    .GetAllAncestors( location.Id )
-                    .Select( l => l.Id ) )
+                    .GetAllAncestorIds( location.Id ) )
                 {
                     campusId = campusLocations
                         .Where( c => c.Value == parentLocationId )
@@ -312,15 +311,13 @@ namespace Rock.CheckIn
         /// <param name="rockContext">The rock context.</param>
         private static void LoadKioskLocations( KioskDevice kioskDevice, Location location, int? campusId, RockContext rockContext )
         {
-            // Get all the child locations also
-            var allLocations = new List<int> { location.Id };
-            new LocationService( rockContext )
-                .GetAllDescendents( location.Id )
-                .Select( l => l.Id )
-                .ToList()
-                .ForEach( l => allLocations.Add( l ) );
+            // Get the child locations and the selected location
+            var allLocations = new LocationService( rockContext ).GetAllDescendentIds( location.Id ).ToList();
+            allLocations.Add( location.Id );
 
-            foreach ( var groupLocation in new GroupLocationService( rockContext ).GetActiveByLocations( allLocations ) )
+            var activeSchedules = new Dictionary<int, KioskSchedule>();
+
+            foreach ( var groupLocation in new GroupLocationService( rockContext ).GetActiveByLocations( allLocations ).AsNoTracking() )
             {
                 var kioskLocation = new KioskLocation( groupLocation.Location );
                 kioskLocation.CampusId = campusId;
@@ -328,12 +325,19 @@ namespace Rock.CheckIn
                 // Populate each kioskLocation with its schedules (kioskSchedules)
                 foreach ( var schedule in groupLocation.Schedules.Where( s => s.CheckInStartOffsetMinutes.HasValue ) )
                 {
-                    var nextActiveDateTime = schedule.GetNextCheckInStartTime( RockDateTime.Now );
-                    if ( nextActiveDateTime.HasValue )
+                    if ( activeSchedules.Keys.Contains( schedule.Id ) )
+                    {
+                        kioskLocation.KioskSchedules.Add( activeSchedules[schedule.Id] );
+                    }
+                    else
                     {
                         var kioskSchedule = new KioskSchedule( schedule );
-                        kioskSchedule.NextActiveDateTime = nextActiveDateTime;
-                        kioskLocation.KioskSchedules.Add( kioskSchedule );
+                        kioskSchedule.CheckInTimes = schedule.GetCheckInTimes( RockDateTime.Now );
+                        if ( kioskSchedule.IsCheckInActive || kioskSchedule.NextActiveDateTime.HasValue )
+                        {
+                            kioskLocation.KioskSchedules.Add( kioskSchedule );
+                            activeSchedules.Add( schedule.Id, kioskSchedule );
+                        }
                     }
                 }
 
