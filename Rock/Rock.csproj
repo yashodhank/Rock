@@ -299,6 +299,10 @@
     <Compile Include="Jobs\SendRegistrationPaymentReminders.cs" />
     <Compile Include="Jobs\SendRegistrationReminders.cs" />
     <Compile Include="Jobs\SendGroupRequirementsNotification.cs" />
+    <Compile Include="Lava\CommonMergeFieldsOptions.cs" />
+    <Compile Include="Lava\LavaHelper.cs" />
+    <Compile Include="Lava\LavaSupportLevel.cs" />
+    <Compile Include="Lava\LegacyLavaSyntaxDetectedException.cs" />
     <Compile Include="Model\BackgroundCheck.cs" />
     <Compile Include="Model\CodeGenerated\BackgroundCheckService.cs" />
     <Compile Include="Model\CodeGenerated\ConnectionActivityTypeService.cs" />
@@ -552,6 +556,7 @@
     <Compile Include="Transactions\LaunchWorkflowTransaction.cs" />
     <Compile Include="Transactions\WorkflowTriggerTransaction.cs" />
     <Compile Include="Utility\DebugHelper.cs" />
+    <Compile Include="Utility\ExtensionMethods\ColorExtensions.cs" />
     <Compile Include="Utility\ExtensionMethods\DecimalExtensions.cs" />
     <Compile Include="Utility\ExtensionMethods\StringHumanizerExtensions.cs" />
     <Compile Include="Utility\FileUtilities.cs" />
