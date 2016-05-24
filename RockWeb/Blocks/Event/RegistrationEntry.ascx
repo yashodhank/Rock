@@ -4,6 +4,7 @@
 <ContentTemplate>
 
     <asp:HiddenField ID="hfTriggerScroll" runat="server" Value="" />
+    <asp:HiddenField ID="hfAllowNavigate" runat="server" Value="" />
 
     <asp:ValidationSummary ID="vsSummary" runat="server" HeaderText="Please Correct the Following" CssClass="alert alert-danger" />
     <Rock:NotificationBox ID="nbPaymentValidation" runat="server" NotificationBoxType="Danger" Visible="false" />
@@ -160,15 +161,22 @@
 
                     <asp:HiddenField ID="hfPreviouslyPaid" runat="server" />
                     <Rock:RockLiteral ID="lPreviouslyPaid" runat="server" Label="Previously Paid" />
+                    
+                    <%-- For Partial Payments... --%>
 
                     <asp:HiddenField ID="hfMinimumDue" runat="server" />
                     <Rock:RockLiteral ID="lMinimumDue" runat="server" Label="Minimum Due Today" />
-
+                    
                     <div class="form-right">
                         <Rock:CurrencyBox ID="nbAmountPaid" runat="server" CssClass="input-width-md amount-to-pay" NumberType="Currency" Label="Amount To Pay Today" Required="true" />
                     </div>
                                  
                     <Rock:RockLiteral ID="lRemainingDue" runat="server" Label="Amount Remaining" />
+
+
+                    <%-- For Payoff --%>
+                    
+                    <Rock:RockLiteral ID="lAmountDue" runat="server" Label="Amount Due" />
                 </div>
             </div>
                 
