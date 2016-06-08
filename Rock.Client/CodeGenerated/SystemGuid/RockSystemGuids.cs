@@ -313,6 +313,7 @@ namespace Rock.Client.SystemGuid
         public const string PERSON = "E4EAB7B2-0B76-429B-AFE4-AD86D7428C70";
         public const string PERSON_BADGES = "3F1AE891-7DC8-46D2-865D-11543B34FB60";
         public const string REMOTE_AUTHS = "ECA90666-E7A0-4406-8559-0153DCB908FD";
+        public const string SCHEDULE = "E9C12C59-98EA-4977-8318-647435BE9A9C";
         public const string SCHEDULES = "EC6A5CAF-F6A2-47A4-9CBA-6E1C53D7E59B";
         public const string SECURITY_ROLE = "7BD25DC9-F34A-478D-BEF9-0C787F5D39B8";
         public const string SINGLE_SELECT = "7525C4CB-EE6B-41D4-9B64-A08048D5A5C0";
@@ -399,6 +400,7 @@ namespace Rock.Client.SystemGuid
         public const string GROUPTYPE_SERVING_TEAM = "2C42B2D4-1C5F-4AD5-A9AD-08631B872AC4";
         public const string GROUPTYPE_SMALL_GROUP = "50FCFB30-F51A-49DF-86F4-2B176EA1820B";
         public const string GROUPTYPE_SMALL_GROUP_SECTION = "FAB75EC6-0402-456A-BE34-252097DE4F20";
+        public const string GROUPTYPE_WEEKLY_SERVICE_CHECKIN_AREA = "FEDD389A-616F-4A53-906C-63D8255631C5";
     }
 
     /// <summary>
