@@ -48,11 +48,9 @@
             </ProgressTemplate>
         </asp:UpdateProgress>
 
-        <main class="container">
-        
+        <main class="container-fluid">
             <!-- Start Content Area -->
             <Rock:Zone Name="Main" runat="server" />
-
         </main>
     </form>
 </body>
