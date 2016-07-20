@@ -22,6 +22,7 @@ using System.Runtime.Serialization;
 
 using Rock.Data;
 using Rock.Security;
+using Rock.Web.Cache;
 
 namespace Rock.Model
 {
@@ -176,9 +177,10 @@ namespace Rock.Model
         {
             get
             {
-                if ( ParentCategory != null )
+                if ( ParentCategoryId.HasValue)
                 {
-                    return ParentCategory;
+                    var parentCategoryCache = CategoryCache.Read( this.ParentCategoryId.Value );
+                    return parentCategoryCache;
                 }
 
                 return base.ParentAuthority;

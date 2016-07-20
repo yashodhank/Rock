@@ -22,6 +22,7 @@ using System.Runtime.Serialization;
 
 using Rock.Data;
 using Rock.Model;
+using Rock.Security;
 
 namespace Rock.Web.Cache
 {
@@ -344,6 +345,23 @@ namespace Rock.Web.Cache
         public static void Flush( int id )
         {
             FlushCache( CategoryCache.CacheKey( id ) );
+        }
+
+        /// <summary>
+        /// A parent authority.  If a user is not specifically allowed or denied access to
+        /// this object, Rock will check access to the parent authority specified by this property.
+        /// </summary>
+        public override ISecured ParentAuthority
+        {
+            get
+            {
+                if ( ParentCategory != null )
+                {
+                    return ParentCategory;
+                }
+
+                return base.ParentAuthority;
+            }
         }
 
         #endregion
