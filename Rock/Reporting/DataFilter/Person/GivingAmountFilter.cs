@@ -424,7 +424,11 @@ function() {
             }
             else if ( comparisonType == ComparisonType.GreaterThanOrEqualTo )
             {
-                financialTransactionDetailsIndividualQry = financialTransactionDetailsIndividualQry.Where( xx => xx.TotalAmount >= amount );
+                // NOTE: if the amount is $0.00 and doing a GreaterThanOrEqualTo, then we don't sum and filter on TotalAmount (which will speed up the query)
+                if ( amount != 0.00M )
+                {
+                    financialTransactionDetailsIndividualQry = financialTransactionDetailsIndividualQry.Where( xx => xx.TotalAmount >= amount );
+                }
             }
 
             var innerQryIndividual = financialTransactionDetailsIndividualQry.Select( xx => xx.PersonId ).AsQueryable();
@@ -456,7 +460,11 @@ function() {
                 }
                 else if ( comparisonType == ComparisonType.GreaterThanOrEqualTo )
                 {
-                    financialTransactionDetailsGivingGroupQry = financialTransactionDetailsGivingGroupQry.Where( xx => xx.TotalAmount >= amount );
+                    // NOTE: if the amount is $0.00 and doing a GreaterThanOrEqualTo, then we don't sum and filter on TotalAmount (which will speed up the query)
+                    if ( amount != 0.00M )
+                    {
+                        financialTransactionDetailsGivingGroupQry = financialTransactionDetailsGivingGroupQry.Where( xx => xx.TotalAmount >= amount );
+                    }
                 }
 
                 var groupMemberService = new GroupMemberService( rockContext );
