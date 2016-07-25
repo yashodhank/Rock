@@ -517,7 +517,7 @@ namespace Rock.Web.UI.Controls
 
             if ( this.Page.IsPostBack )
             {
-                if ( _hfInCodeEditorMode.Value.AsBoolean() )
+                if ( this.Page.Request.Params[_hfInCodeEditorMode.UniqueID].AsBoolean() )
                 {
                     this.Text = _ceEditor.Text;
                 }
@@ -557,6 +557,12 @@ namespace Rock.Web.UI.Controls
         {
             if ( this.Visible )
             {
+                if ( this.StartInCodeEditorMode )
+                {
+                    _ceEditor.Text = this.Text;
+                    this.Text = "";
+                }
+
                 RockControlHelper.RenderControl( this, writer );
                 _hfDisableVrm.RenderControl( writer );
                 _hfInCodeEditorMode.RenderControl( writer );
@@ -571,52 +577,74 @@ namespace Rock.Web.UI.Controls
         public void RenderBaseControl( HtmlTextWriter writer )
         {
             string summernoteInitScriptFormat = @"
-var summerNoteEditor = $('#{0}').summernote({{
-    height: '{2}', //set editable area's height
-    toolbar: Rock.htmlEditor.toolbar_RockCustomConfig{11},
+$(document).ready( function() {{
+    var summerNoteEditor_{0} = $('#{0}').summernote({{
+        height: '{2}', //set editable area's height
+        toolbar: Rock.htmlEditor.toolbar_RockCustomConfig{11},
 
-    callbacks: {{
-       {12} 
-    }},
+        popover: {{
+          image: [
+            ['imagesize', ['imageSize100', 'imageSize50', 'imageSize25']],
+            ['custom', ['rockimagebrowser']],
+            ['float', ['floatLeft', 'floatRight', 'floatNone']],
+            ['remove', ['removeMedia']]
+          ],
+          link: [
+            ['link', ['linkDialogShow', 'unlink']]
+          ],
+          air: [
+            ['color', ['color']],
+            ['font', ['bold', 'underline', 'clear']],
+            ['para', ['ul', 'paragraph']],
+            ['table', ['table']],
+            ['insert', ['link', 'picture']]
+          ]
+        }},
 
-    buttons: {{
-        rockfilebrowser: RockFileBrowser,
-        rockimagebrowser: RockImageBrowser, 
-        rockmergefield: RockMergeField,
-        rockcodeeditor: RockCodeEditor
-    }},
+        callbacks: {{
+           {12} 
+        }},
 
-    rockFileBrowserOptions: {{ 
-        enabled: {3},
-        documentFolderRoot: '{4}', 
-        imageFolderRoot: '{5}',
-        imageFileTypeWhiteList: '{6}',
-        fileTypeBlackList: '{7}'
-    }},
+        buttons: {{
+            rockfilebrowser: RockFileBrowser,
+            rockimagebrowser: RockImageBrowser, 
+            rockmergefield: RockMergeField,
+            rockcodeeditor: RockCodeEditor
+        }},
 
-    rockMergeFieldOptions: {{ 
-        enabled: {9},
-        mergeFields: '{8}' 
-    }},
-    rockTheme: '{10}',
+        rockFileBrowserOptions: {{ 
+            enabled: {3},
+            documentFolderRoot: '{4}', 
+            imageFolderRoot: '{5}',
+            imageFileTypeWhiteList: '{6}',
+            fileTypeBlackList: '{7}'
+        }},
 
-    codeEditorOptions: {{
-        controlId: '{13}',
-        inCodeEditorModeHiddenFieldId: '{14}'
-    }},
+        rockMergeFieldOptions: {{ 
+            enabled: {9},
+            mergeFields: '{8}' 
+        }},
+        rockTheme: '{10}',
 
-    // summernote-cleaner.js plugin options
-    cleaner:{{
-            el:'{0}',  // Element ID or Class used to Initialise Summernote.
-            notTime:2400, // Time to display Notifications.
-            action:'paste', // both|button|paste 'button' only cleans via toolbar button, 'paste' only clean when pasting content, both does both options.
+        codeEditorOptions: {{
+            controlId: '{13}',
+            inCodeEditorModeHiddenFieldId: '{14}'
+        }},
+
+        // summernote-cleaner.js plugin options
+        cleaner:{{
+                el:'#{0}',  // Element ID or Class used to Initialise Summernote.
+                notTime:2400, // Time to display Notifications.
+                action:'paste', // both|button|paste 'button' only cleans via toolbar button, 'paste' only clean when pasting content, both does both options.
+        }}
+
+    }});
+
+    if ({15} && RockCodeEditor) {{
+        RockCodeEditor(summerNoteEditor_{0}.data('summernote'), true).click();
     }}
 
 }});
-
-if ({15} && RockCodeEditor) {{
-    RockCodeEditor(summerNoteEditor.data('summernote')).click();
-}}
 ";
 
             bool rockMergeFieldEnabled = MergeFields.Any();
