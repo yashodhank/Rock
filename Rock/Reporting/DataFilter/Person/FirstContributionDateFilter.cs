@@ -164,7 +164,30 @@ function() {
             slidingDateRangePicker.Required = true;
             filterControl.Controls.Add( slidingDateRangePicker );
 
-            var controls = new Control[2] { accountPicker, slidingDateRangePicker };
+            RockCheckBox cbUseActualDate = new RockCheckBox();
+            cbUseActualDate.ID = filterControl.ID + "_cbUseActualDate";
+            cbUseActualDate.AddCssClass( "js-use-actual-date" );
+            cbUseActualDate.Text = "Use Actual Date instead of Sunday Date";
+            filterControl.Controls.Add( cbUseActualDate );
+
+            RockRadioButtonList rblIncludePersonsOption = new RockRadioButtonList();
+            rblIncludePersonsOption.ID = filterControl.ID + "_cblIncludePersonsOption";
+            rblIncludePersonsOption.Items.Add( "Giver" );
+            rblIncludePersonsOption.Items.Add( "Adults" );
+            rblIncludePersonsOption.Items.Add( "Children" );
+            rblIncludePersonsOption.Items.Add( "Family" );
+            rblIncludePersonsOption.Label = "Include";
+            rblIncludePersonsOption.Help = @"
+<ul>
+<li>Giver - This will show each of the giving leaders associated with the matching transactions</li>
+<li>Adults - This will show all the adults in any family that has matching transactions</li>
+<li>Children - This will show all the children in any family that has matching transactions</li>
+<li>Family - This will show all the family members for any family that has matching transactions</li>
+</ul>";
+
+            filterControl.Controls.Add( rblIncludePersonsOption );
+
+            var controls = new Control[4] { accountPicker, slidingDateRangePicker, cbUseActualDate, rblIncludePersonsOption };
 
             return controls;
         }
@@ -311,7 +334,7 @@ function() {
                     PersonId = ss.Key,
                     FirstTransactionSundayDate = ss.Min( a => a.SundayDate )
                 } );
-
+            
             if ( dateRange.Start.HasValue )
             {
                 firstContributionDateQry = firstContributionDateQry.Where( xx => xx.FirstTransactionSundayDate >= dateRange.Start.Value );
