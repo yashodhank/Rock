@@ -400,6 +400,12 @@ namespace RockWeb.Blocks.Crm.PersonDetail
                             rockContext.WrapTransaction( () =>
                             {
                                 Group group = null;
+                                // TODO, put them in the selected family if an existing family was selected in the "Detect Families at Address" prompt
+                                if ( pnlAddressInUseWarning.Visible )
+                                {
+                                    var radFamilyToUse = pnlAddressInUseWarning.ControlsOfTypeRecursive<RockRadioButton>().Where( a => a.Checked ).FirstOrDefault();
+                                }
+
                                 if ( _isFamilyGroupType )
                                 {
                                     group = GroupService.SaveNewFamily( rockContext, GroupMembers, cpCampus.SelectedValueAsInt(), true );
@@ -567,6 +573,13 @@ namespace RockWeb.Blocks.Crm.PersonDetail
                     }
                 }
 
+                // Prompt if there are already families at the address
+                if ( _isFamilyGroupType )
+                {
+                    ShowFamiliesAtAddress();
+                }
+
+                // show duplicate person warning
                 if ( Duplicates.ContainsKey( groupMember.Person.Guid ) )
                 {
                     var dupRow = new HtmlGenericControl( "div" );
@@ -635,6 +648,57 @@ namespace RockWeb.Blocks.Crm.PersonDetail
             ShowPage();
         }
 
+        /// <summary>
+        /// Shows the families at address.
+        /// </summary>
+        /// <param name="rockContext">The rock context.</param>
+        private void ShowFamiliesAtAddress()
+        {
+            string locationKey = GetLocationKey();
+            pnlAddressInUseWarning.Visible = false;
+            if ( !string.IsNullOrWhiteSpace( locationKey ) && _verifiedLocations.ContainsKey( locationKey ) )
+            {
+                int? locationId = _verifiedLocations[locationKey];
+                if ( locationId.HasValue )
+                {
+                    RockContext rockContext = new RockContext();
+                    var location = new LocationService( rockContext ).Get( locationId.Value );
+                    var groupLocationService = new GroupLocationService( rockContext );
+                    var groupLocationTypeValueId = DefinedValueCache.Read( Rock.SystemGuid.DefinedValue.GROUP_LOCATION_TYPE_HOME.AsGuid() ).Id;
+                    var groupTypeIdFamily = GroupTypeCache.GetFamilyGroupType().Id;
+                    var familiesAtLocationList = groupLocationService.Queryable().Where( a =>
+                            a.GroupLocationTypeValueId == groupLocationTypeValueId
+                            && a.Group.GroupTypeId == groupTypeIdFamily
+                            && a.Group.IsActive
+                            && a.LocationId == locationId )
+                            .Select( a => a.Group )
+                            .ToList();
+                            
+
+                    if ( familiesAtLocationList.Any() )
+                    {
+                        pnlAddressInUseWarning.Visible = CurrentPageIndex == 1;
+                        var sortedFamilyList = familiesAtLocationList.Select( a => new
+                        {
+                            Id = a.Id,
+                            FamilyTitle = RockUdfHelper.ufnCrm_GetFamilyTitle( rockContext, null, a.Id, null, true ),
+                            GroupLocation = a.GroupLocations.Where( gl => gl.LocationId == locationId ).FirstOrDefault(),
+                            FamilyMembers = a.Members
+                        } ).OrderBy(a => a.FamilyMembers.AsQueryable().HeadOfHousehold().LastName).ToList();
+
+                        rptFamiliesAtAddress.DataSource = sortedFamilyList;
+
+                        rptFamiliesAtAddress.DataBind();
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Handles the Click event of the lbRemoveMember control.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
         protected void lbRemoveMember_Click( object sender, EventArgs e )
         {
             Guid personGuid = ( (LinkButton)sender ).ID.Substring( 15 ).Replace( "_", "-" ).AsGuid();
@@ -717,8 +781,8 @@ namespace RockWeb.Blocks.Crm.PersonDetail
             var groupMembers = person.GetGroupMembers( _groupType.Id, false, rockContext );
             if ( groupMembers != null && groupMembers.Any() )
             {
-                personInfoHtml.AppendFormat( 
-                    "<p><strong>{0} Members:</strong> {1}", 
+                personInfoHtml.AppendFormat(
+                    "<p><strong>{0} Members:</strong> {1}",
                     _groupType.Name,
                     groupMembers.Select( m => m.Person.NickName ).ToList().AsDelimited( ", " ) );
             }
@@ -1093,5 +1157,48 @@ namespace RockWeb.Blocks.Crm.PersonDetail
         }
 
         #endregion
+
+        /// <summary>
+        /// Handles the ItemDataBound event of the rptFamiliesAtAddress control.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The <see cref="RepeaterItemEventArgs"/> instance containing the event data.</param>
+        protected void rptFamiliesAtAddress_ItemDataBound( object sender, RepeaterItemEventArgs e )
+        {
+            if ( e.Item.DataItem != null )
+            {
+                var familyMembers = e.Item.DataItem.GetPropertyValue( "FamilyMembers" ) as IEnumerable<GroupMember>;
+                var lFamilyMembersHtml = e.Item.FindControl( "lFamilyMembersHtml" ) as Literal;
+                var hfFamilyGroupId = e.Item.FindControl( "hfFamilyGroupId" ) as HiddenField;
+                
+                hfFamilyGroupId.Value = ( (int)e.Item.DataItem.GetPropertyValue( "Id" ) ).ToString();
+
+                var rbFamilyToUse = e.Item.FindControl( "rbFamilyToUse" ) as RockRadioButton;
+                if ( rbFamilyToUse != null )
+                {
+                    rbFamilyToUse.ID = "rbFamilyToUse" + hfFamilyGroupId.Value;
+                }
+
+                var sortedFamilyMembers = familyMembers.OrderBy( a => a.GroupRole.Order ).ThenBy( a => a.Person.Gender ).ThenBy( a => a.Person.NickName ).ToList();
+                string familyMembersHtml = string.Empty;
+                foreach ( var familyMember in sortedFamilyMembers )
+                {
+                    familyMembersHtml += string.Format( "<li>{0}: {1}, {2}, {3}", familyMember.Person.FullName, familyMember.GroupRole, familyMember.Person.MaritalStatusValue.Value, familyMember.Person.Gender.ConvertToString() );
+                    if ( familyMember.Person.Age.HasValue )
+                    {
+                        familyMembersHtml += ", Age " + familyMember.Person.Age.ToString();
+                    }
+
+                    familyMembersHtml += "</li>";
+                }
+
+                lFamilyMembersHtml.Text = string.Format( "<ul>{0}</ul>", familyMembersHtml );
+                if ((e.Item.ItemIndex-1) % 3 == 0 )
+                {
+                    var lNewRowHtml = e.Item.FindControl( "lNewRowHtml" ) as Literal;
+                    lNewRowHtml.Text = "</div><div class='row'>";
+                }
+            }
+        }
     }
 }

@@ -43,5 +43,7 @@ namespace Rock.Web.UI.Controls
                 this.ViewState["DisplayInline"] = value;
             }
         }
+
+        // https://support.microsoft.com/en-us/kb/316495
     }
 }

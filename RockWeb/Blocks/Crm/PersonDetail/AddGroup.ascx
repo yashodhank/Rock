@@ -3,6 +3,22 @@
 <asp:UpdatePanel ID="upAddGroup" runat="server">
     <ContentTemplate>
 
+        <script type="text/javascript">
+            debugger
+            $(document).ready(function () {
+                debugger
+                Sys.Application.add_load(function () {
+                    debugger
+                    <%-- workaround for RadioButtons in Repeaters https://support.microsoft.com/en-us/kb/316495 --%>
+                    //$('.js-groupfamilychoice').attr('Name', 'groupFamilyChoice');
+                    $('.js-groupfamilychoice').click(function (a, b, c) {
+                        debugger
+                        $('.js-groupfamilychoice').not($(this)).prop('checked', false);
+                    });
+                });
+            });
+        </script>
+
         <div class="panel panel-block">
             <div class="panel-heading">
                 <h1 class="panel-title"><i class="fa fa-plus-square-o"></i>
@@ -37,7 +53,7 @@
                     <div class="row">
                         <div class="col-md-4">
                             <Rock:CampusPicker ID="cpCampus" runat="server" Required="true" />
-                            <Rock:RockDropDownList ID="ddlMaritalStatus" runat="server" Label="Marital Status of Adults" 
+                            <Rock:RockDropDownList ID="ddlMaritalStatus" runat="server" Label="Marital Status of Adults"
                                 Help="The marital status to use for the adults in this family." />
                         </div>
 
@@ -46,6 +62,36 @@
                         </div>
                     </div>
 
+                </asp:Panel>
+
+                <asp:Panel ID="pnlAddressInUseWarning" runat="server" Visible="false">
+                    <div class="alert alert-warning">
+                        <h4>Address Already In Use</h4>
+                        <p>This address already has a family assigned to it. Select the family if you would prefer to add the individuals as new family members. You may also continue adding the new family if you believe this is the correct information.</p>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <Rock:RockRadioButton ID="rbNewFamily" runat="server" CssClass="js-groupfamilychoice" GroupName="groupFamilyChoice" Checked="true" DisplayInline="false" />
+                                <strong>New Family</strong>
+                                <br />
+                            </div>
+                            <asp:Repeater ID="rptFamiliesAtAddress" runat="server" OnItemDataBound="rptFamiliesAtAddress_ItemDataBound">
+                                <ItemTemplate>
+
+                                    <div class="col-md-4">
+                                        <asp:HiddenField ID="hfFamilyGroupId" runat="server" />
+                                        <Rock:RockRadioButton ID="rbFamilyToUse" runat="server" CssClass="js-groupfamilychoice" GroupName="groupFamilyChoice" DisplayInline="false" />
+                                        <strong><%# Eval("FamilyTitle") %></strong>
+                                        <br />
+                                        <%# Eval( "GroupLocation.GroupLocationTypeValue" )%>: <%# Eval( "GroupLocation.Location" )%>
+                                        <asp:Literal ID="lFamilyMembersHtml" runat="server" />
+                                    </div>
+                                    <asp:Literal ID="lNewRowHtml" runat="server" />
+                                </ItemTemplate>
+                            </asp:Repeater>
+                        </div>
+                        <div class="row">
+                        </div>
+                    </div>
                 </asp:Panel>
 
                 <asp:Panel ID="pnlContactInfo" runat="server" Visible="false">
