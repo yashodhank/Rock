@@ -403,7 +403,7 @@ namespace RockWeb.Blocks.Crm.PersonDetail
                                 // TODO, put them in the selected family if an existing family was selected in the "Detect Families at Address" prompt
                                 if ( pnlAddressInUseWarning.Visible )
                                 {
-                                    var radFamilyToUse = pnlAddressInUseWarning.ControlsOfTypeRecursive<RockRadioButton>().Where( a => a.Checked ).FirstOrDefault();
+                                    int? familyToAddToGroupId = hfSelectedFamilyGroupId.Value.AsIntegerOrNull();
                                 }
 
                                 if ( _isFamilyGroupType )
@@ -1169,14 +1169,11 @@ namespace RockWeb.Blocks.Crm.PersonDetail
             {
                 var familyMembers = e.Item.DataItem.GetPropertyValue( "FamilyMembers" ) as IEnumerable<GroupMember>;
                 var lFamilyMembersHtml = e.Item.FindControl( "lFamilyMembersHtml" ) as Literal;
-                var hfFamilyGroupId = e.Item.FindControl( "hfFamilyGroupId" ) as HiddenField;
-                
-                hfFamilyGroupId.Value = ( (int)e.Item.DataItem.GetPropertyValue( "Id" ) ).ToString();
 
                 var rbFamilyToUse = e.Item.FindControl( "rbFamilyToUse" ) as RockRadioButton;
                 if ( rbFamilyToUse != null )
                 {
-                    rbFamilyToUse.ID = "rbFamilyToUse" + hfFamilyGroupId.Value;
+                    rbFamilyToUse.Attributes["data-familygroupid"] = ( (int)e.Item.DataItem.GetPropertyValue( "Id" ) ).ToString();
                 }
 
                 var sortedFamilyMembers = familyMembers.OrderBy( a => a.GroupRole.Order ).ThenBy( a => a.Person.Gender ).ThenBy( a => a.Person.NickName ).ToList();
