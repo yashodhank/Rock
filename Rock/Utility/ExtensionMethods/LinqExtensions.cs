@@ -445,6 +445,35 @@ namespace Rock
             return result;
         }
 
+        public static List<T> LoadAttributes<T>( this IQueryable<T> source, RockContext rockContext ) where T : Rock.Data.Model<T>, new()
+        {
+            int entityTypeId = Rock.Web.Cache.EntityTypeCache.GetId( typeof( T ) ) ?? 0;
+
+            var loadAttributesQry = new AttributeValueService( rockContext ).Queryable().Where( a => a.Attribute.EntityTypeId == entityTypeId );
+
+            var attributeLoadAttributeJoinList =
+                ( from a in source
+                  from la in loadAttributesQry.Where( x => x.EntityId == a.Id ).DefaultIfEmpty()
+                  select new
+                  {
+                      Attribute = a,
+                      AttributeValue = la
+                  } ).GroupBy( a => a.Attribute ).Select( x => new
+                  {
+                      Entity = x.Key,
+                      AttributeValues = x.Select( xx => xx.AttributeValue ).Where( a => a != null )
+                  } ).AsNoTracking().ToList();
+
+            var result = attributeLoadAttributeJoinList.Select( a =>
+            {
+                a.Entity.Attributes = a.AttributeValues.ToList().ToDictionary( k => k.Attribute.Key, v => AttributeCache.Read( v.Attribute ) );
+                a.Entity.AttributeValues = a.AttributeValues.ToList().ToDictionary( k => k.Attribute.Key, v => new AttributeValueCache( v ) );
+                return a.Entity;
+            } ).ToList();
+
+            return result;
+        }
+
         /// <summary>
         /// Forces an Inner Join to the Person table using the specified key selector expression.
         /// Handy for optimizing a query that would have normally done an outer join 
