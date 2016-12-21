@@ -1391,6 +1391,7 @@ namespace Rock.Lava
             var rockContext = GetRockContext( context );
 
             AttributeCache attribute = null;
+            AttributeValueCache attributeValue = null;
             string rawValue = string.Empty;
 
             // If Input is "Global" then look for a global attribute with key
@@ -1438,6 +1439,7 @@ namespace Rock.Lava
                     {
                         attribute = item.Attributes[attributeKey];
                         rawValue = item.AttributeValues[attributeKey].Value;
+                        attributeValue = item.AttributeValues[attributeKey];
                     }
                 }
             }
@@ -1447,7 +1449,9 @@ namespace Rock.Lava
             {
                 Person currentPerson = GetCurrentPerson( context );
 
-                if ( attribute.IsAuthorized( Authorization.VIEW, currentPerson ) )
+                if ( attribute.IsAuthorized( Authorization.VIEW, currentPerson ) || 
+                    ( attributeValue != null && attributeValue.IsAuthorized( Authorization.VIEW, currentPerson ) ) 
+                    )
                 {
                     // Check qualifier for 'Raw' if present, just return the raw unformatted value
                     if ( qualifier.Equals( "RawValue", StringComparison.OrdinalIgnoreCase ) )

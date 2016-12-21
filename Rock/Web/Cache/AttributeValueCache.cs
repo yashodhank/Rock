@@ -41,7 +41,7 @@ namespace Rock.Web.Cache
     [Serializable]
     [DataContract]
     [DotLiquid.LiquidType( "AttributeId", "Value", "ValueFormatted", "AttributeName", "AttributeKey" )]
-    public class AttributeValueCache
+    public class AttributeValueCache : CachedModel<Rock.Model.AttributeValue>
     {
         #region constructors
 
@@ -60,6 +60,7 @@ namespace Rock.Web.Cache
         {
             AttributeId = model.AttributeId;
             Value = model.Value;
+            EntityId = model.EntityId;
         }
 
         #endregion
@@ -74,6 +75,15 @@ namespace Rock.Web.Cache
         /// </value>
         [DataMember]
         public int AttributeId { get; set; }
+
+        /// <summary>
+        /// Gets or sets the entity identifier.
+        /// </summary>
+        /// <value>
+        /// The entity identifier.
+        /// </value>
+        [DataMember]
+        public int? EntityId { get; set; }
 
         /// <summary>
         /// Gets or sets the value.
@@ -200,6 +210,22 @@ namespace Rock.Web.Cache
         public override string ToString()
         {
             return this.ValueFormatted;
+        }
+
+        #endregion
+
+        #region ISecured implementation
+
+        /// <summary>
+        /// A parent authority.  If a user is not specifically allowed or denied access to
+        /// this object, Rock will check access to the parent authority specified by this property.
+        /// </summary>
+        public override ISecured ParentAuthority
+        {
+            get
+            {
+                return new Rock.Model.AttributeValue { Id = 0, EntityId = this.EntityId, AttributeId = this.AttributeId };
+            }
         }
 
         #endregion

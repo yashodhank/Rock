@@ -18,9 +18,11 @@ using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Data.Entity.ModelConfiguration;
+using System.Reflection;
 using System.Runtime.Serialization;
 using Newtonsoft.Json;
 using Rock.Data;
+using Rock.Security;
 using Rock.Web.Cache;
 
 namespace Rock.Model
@@ -245,6 +247,61 @@ namespace Rock.Model
             }
         }
 
+        /// <summary>
+        /// Gets the parent authority -- the attribute value's
+        /// entity.
+        /// </summary>
+        /// <value>
+        /// The parent authority.
+        /// </value>
+        public override Security.ISecured ParentAuthority
+        {
+            get
+            {
+                int? entityId = this.EntityId;
+
+                // Get the attribute value's entity (if it has one; if it doesn't it's a global attribute)
+                // This is a bit tricky because we have to get the entity's "entity type"
+                // from the attribute.
+                if ( entityId.HasValue )
+                {
+                    // Now we need the attribute to get its entitytype (since that tells us
+                    // 
+                    int? attributeId = this.AttributeId;
+                    if ( !attributeId.HasValue && this.Attribute != null )
+                    {
+                        attributeId = this.Attribute.Id;
+                    }
+
+                    var attribute = AttributeCache.Read( attributeId.Value );
+
+                    // If the attribute has an entity type we can proceed.
+                    if ( attribute != null && attribute.EntityTypeId.HasValue)
+                    {
+                        var entityType = EntityTypeCache.Read( attribute.EntityTypeId.Value );
+                        var type = entityType.GetEntityType();
+
+                        if ( type != null )
+                        {
+                            Type[] modelType = { type };
+                            Type genericServiceType = typeof( Rock.Data.Service<> );
+                            Type modelServiceType = genericServiceType.MakeGenericType( modelType );
+                            RockContext _rockContext = new RockContext();
+                            Rock.Data.IService serviceInstance = Activator.CreateInstance( modelServiceType, new object[] { _rockContext } ) as IService;
+                            MethodInfo getMethod = serviceInstance.GetType().GetMethod( "Get", new Type[] { typeof( int ) } );
+
+                            if ( getMethod != null )
+                            {
+                                return getMethod.Invoke( serviceInstance, new object[] { entityId.Value } ) as ISecured;
+                            }
+                        }
+                    }
+
+                }
+
+                return base.ParentAuthority;
+            }
+        }
         #endregion
 
         #region Public Methods
