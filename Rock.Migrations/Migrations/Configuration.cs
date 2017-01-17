@@ -70,7 +70,7 @@ namespace Rock.Migrations
 
             // Previous to Rock v4.0 the PageViews didn't store Browser or OS info. This can probably be removed in a future update 
             // after v4.0 -DT
-            var pageViewRockContext = new Rock.Data.RockContext();
+            /*var pageViewRockContext = new Rock.Data.RockContext();
             var pageViewUserAgentService = new Rock.Model.PageViewUserAgentService( pageViewRockContext );
             var qryPageViewUserAgent = pageViewUserAgentService.Queryable().Where(a => a.Browser == null || a.OperatingSystem == null || a.ClientType == null);
             foreach ( var pageViewUserAgent in qryPageViewUserAgent.Where(a => a.UserAgent != null ))
@@ -90,6 +90,7 @@ namespace Rock.Migrations
             }
 
             pageViewRockContext.SaveChanges( true );
+            */
 
         }
     }

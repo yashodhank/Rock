@@ -1420,9 +1420,9 @@ namespace Rock.Model
                 return false;
             }  
  
-            if ( new Service<PageView>( Context ).Queryable().Any( a => a.PersonAliasId == item.Id ) )
+            if ( new Service<Interaction>( Context ).Queryable().Any( a => a.PersonAliasId == item.Id ) )
             {
-                errorMessage = string.Format( "This {0} is assigned to a {1}.", PersonAlias.FriendlyTypeName, PageView.FriendlyTypeName );
+                errorMessage = string.Format( "This {0} is assigned to a {1}.", PersonAlias.FriendlyTypeName, Interaction.FriendlyTypeName );
                 return false;
             }  
  
