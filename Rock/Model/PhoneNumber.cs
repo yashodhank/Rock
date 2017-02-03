@@ -154,6 +154,7 @@ namespace Rock.Model
         /// The Number Type <see cref="Rock.Model.DefinedValue"/> of the phone number.
         /// </value>
         [DataMember]
+        [DefinedValue( SystemGuid.DefinedType.PERSON_PHONE_TYPE )]
         public virtual Model.DefinedValue NumberTypeValue { get; set; }
 
         /// <summary>

@@ -336,6 +336,10 @@
     <Compile Include="Attribute\WorkflowAttributeAttribute.cs" />
     <Compile Include="Attribute\WorkflowTextOrAttributeAttribute.cs" />
     <Compile Include="Attribute\WorkflowTypeFieldAttribute.cs" />
+    <Compile Include="BulkUpdate\AddressImport.cs" />
+    <Compile Include="BulkUpdate\AttributeValueImport.cs" />
+    <Compile Include="BulkUpdate\PersonImport.cs" />
+    <Compile Include="BulkUpdate\PhoneNumberImport.cs" />
     <Compile Include="Chart\ChartGroupBy.cs" />
     <Compile Include="Chart\IChartData.cs" />
     <Compile Include="Chart\SummaryData.cs" />
