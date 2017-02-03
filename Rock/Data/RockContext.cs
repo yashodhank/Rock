@@ -1445,6 +1445,17 @@ namespace Rock.Data
         #endregion
 
         /// <summary>
+        /// Use SqlBulkInsert to insert records.
+        /// WARNING: This will bypass the Rock and EF Framework, as may permanently disable contraints on the SQL Table, so be careful!
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="records">The records.</param>
+        public void BulkInsert<T>( IEnumerable<T> records ) where T : class, IEntity
+        {
+            EntityFramework.Utilities.EFBatchOperation.For( this, this.Set<T>() ).InsertAll( records );
+        }
+
+        /// <summary>
         /// This method is called when the context has been initialized, but
         /// before the model has been locked down and used to initialize the context. 
         /// </summary>
