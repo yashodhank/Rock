@@ -99,16 +99,108 @@ namespace RockWeb.Blocks.Utility
 
         protected void btnGo_Click( object sender, EventArgs e )
         {
-
-
-            var rockContext = new RockContext();
+            RockContext rockContext = new RockContext();
             var personService = new PersonService( rockContext );
             var groupService = new GroupService( rockContext );
+
             var familyGroupType = GroupTypeCache.GetFamilyGroupType();
             int familyGroupTypeId = familyGroupType.Id;
-            int adultRoleId = familyGroupType.Roles.Where( a => a.Guid == Rock.SystemGuid.GroupRole.GROUPROLE_FAMILY_MEMBER_ADULT.AsGuid() ).First().Id;
 
+            //int familyGroupTypeId, personRecordTypeValueId;
+            Dictionary<int, Group> familiesLookup;
+            Dictionary<int, Person> personLookup;
+
+            // dictionary of Families. KEY is FamilyForeignId
+            familiesLookup = groupService.Queryable().AsNoTracking().Where( a => a.GroupTypeId == familyGroupTypeId && a.ForeignId.HasValue )
+                .ToList().ToDictionary( k => k.ForeignId.Value, v => v );
+            personLookup = personService.Queryable().AsNoTracking().Where( a => a.ForeignId.HasValue )
+                .ToList().ToDictionary( k => k.ForeignId.Value, v => v );
+
+            List<PersonImport> personImports = GetPersonImportsFromCSVFile();
+
+            foreach ( var personImport in personImports )
+            {
+                Group family = null;
+
+                if ( familiesLookup.ContainsKey( personImport.FamilyForeignId ) )
+                {
+                    family = familiesLookup[personImport.FamilyForeignId];
+                }
+
+                if ( family == null )
+                {
+                    family = new Group();
+                    family.GroupTypeId = familyGroupTypeId;
+                    family.Name = personImport.LastName;
+                    family.CampusId = personImport.CampusId;
+
+                    family.ForeignId = personImport.FamilyForeignId;
+                    familiesLookup.Add( personImport.FamilyForeignId, family );
+                }
+
+                Person person = null;
+                if ( personLookup.ContainsKey( personImport.PersonForeignId ) )
+                {
+                    person = personLookup[personImport.PersonForeignId];
+                }
+
+                if ( person == null )
+                {
+                    person = new Person();
+                    person.RecordTypeValueId = personImport.RecordTypeValueId;
+                    person.RecordStatusValueId = personImport.RecordStatusValueId;
+                    person.RecordStatusLastModifiedDateTime = personImport.RecordStatusLastModifiedDateTime;
+                    person.RecordStatusReasonValueId = personImport.RecordStatusReasonValueId;
+                    person.ConnectionStatusValueId = personImport.ConnectionStatusValueId;
+                    person.ReviewReasonValueId = personImport.ReviewReasonValueId;
+                    person.IsDeceased = personImport.IsDeceased;
+                    person.TitleValueId = personImport.TitleValueId;
+                    person.FirstName = personImport.FirstName;
+                    person.NickName = personImport.NickName;
+                    person.LastName = personImport.LastName;
+                    person.SuffixValueId = personImport.SuffixValueId;
+                    person.BirthDay = personImport.BirthDay;
+                    person.BirthMonth = personImport.BirthMonth;
+                    person.BirthYear = personImport.BirthYear;
+                    person.Gender = personImport.Gender;
+                    person.MaritalStatusValueId = personImport.MaritalStatusValueId;
+                    person.AnniversaryDate = personImport.AnniversaryDate;
+                    person.GraduationYear = personImport.GraduationYear;
+                    person.Email = personImport.Email;
+                    person.IsEmailActive = personImport.IsEmailActive;
+                    person.EmailNote = personImport.EmailNote;
+                    person.EmailPreference = personImport.EmailPreference;
+                    person.InactiveReasonNote = personImport.InactiveReasonNote;
+                    person.ConnectionStatusValueId = personImport.ConnectionStatusValueId;
+                    person.ForeignId = personImport.PersonForeignId;
+                    personLookup.Add( personImport.PersonForeignId, person );
+                }
+            }
+
+            using ( var ts = new System.Transactions.TransactionScope() )
+            {
+
+                var familiesToInsert = familiesLookup.Where( a => a.Value.Id == 0 ).Select( a => a.Value ).ToList();
+                var personsToInsert = personLookup.Where( a => a.Value.Id == 0 ).Select( a => a.Value ).ToList();
+
+                rockContext.BulkInsert( familiesToInsert );
+                rockContext.BulkInsert( personsToInsert );
+
+                ts.Complete();
+            };
+        }
+
+        /// <summary>
+        /// Gets the person imports from CSV file.
+        /// </summary>
+        /// <returns></returns>
+        private List<PersonImport> GetPersonImportsFromCSVFile()
+        {
+            RockContext rockContext = new RockContext();
             int personRecordTypeValueId = DefinedValueCache.Read( Rock.SystemGuid.DefinedValue.PERSON_RECORD_TYPE_PERSON.AsGuid() ).Id;
+
+            var familyGroupType = GroupTypeCache.GetFamilyGroupType();
+            int adultRoleId = familyGroupType.Roles.Where( a => a.Guid == Rock.SystemGuid.GroupRole.GROUPROLE_FAMILY_MEMBER_ADULT.AsGuid() ).First().Id;
 
             int recordStatusValueActiveId = DefinedValueCache.Read( Rock.SystemGuid.DefinedValue.PERSON_RECORD_STATUS_ACTIVE.AsGuid() ).Id;
             int recordStatusValueInActiveId = DefinedValueCache.Read( Rock.SystemGuid.DefinedValue.PERSON_RECORD_STATUS_INACTIVE.AsGuid() ).Id;
@@ -125,19 +217,11 @@ namespace RockWeb.Blocks.Utility
             int groupLocationTypeHomeId = DefinedValueCache.Read( Rock.SystemGuid.DefinedValue.GROUP_LOCATION_TYPE_HOME.AsGuid() ).Id;
             int groupLocationTypeWorkId = DefinedValueCache.Read( Rock.SystemGuid.DefinedValue.GROUP_LOCATION_TYPE_WORK.AsGuid() ).Id;
 
-
             var attributeService = new AttributeService( rockContext );
             var attributeAllergy = attributeService.GetByEntityTypeId( EntityTypeCache.Read<Person>().Id ).FirstOrDefault( a => a.Key == "Allergy" );
             var attributeBaptismDate = attributeService.GetByEntityTypeId( EntityTypeCache.Read<Person>().Id ).FirstOrDefault( a => a.Key == "BaptismDate" );
 
             var gradeOffsetLookup = DefinedTypeCache.Read( Rock.SystemGuid.DefinedType.SCHOOL_GRADES.AsGuid() ).DefinedValues.ToDictionary( k => k.Description.ToLower(), v => v.Value.AsInteger() );
-
-            // dictionary of Families. KEY is FamilyForeignId
-            Dictionary<int, Group> familiesLookup = groupService.Queryable().AsNoTracking().Where( a => a.GroupTypeId == familyGroupTypeId && a.ForeignId.HasValue )
-                .ToList().ToDictionary( k => k.ForeignId.Value, v => v );
-
-            Dictionary<int, Person> personLookup = personService.Queryable().AsNoTracking().Where( a => a.ForeignId.HasValue )
-                .ToList().ToDictionary( k => k.ForeignId.Value, v => v );
 
             var personImports = new List<PersonImport>();
             var campusLookup = CampusCache.All().ToDictionary( k => k.Name, v => v.Id );
@@ -160,16 +244,16 @@ namespace RockWeb.Blocks.Utility
                     var personImport = new PersonImport
                     {
                         PersonForeignId = flatRecord.IndividualID.AsInteger(),
-                        FamilyForeignID = flatRecord.FamilyID.AsInteger(),
+                        FamilyForeignId = flatRecord.FamilyID.AsInteger(),
                         GroupRoleId = adultRoleId,
                         GivingIndividually = false,
                         RecordTypeValueId = personRecordTypeValueId,
 
                     };
 
-                    if (personImport.PersonForeignId == 0 || personImport.FamilyForeignID == 0)
+                    if ( personImport.PersonForeignId == 0 || personImport.FamilyForeignId == 0 )
                     {
-                        continue;
+                        throw new Exception( "personImport.PersonForeignId == 0 || personImport.FamilyForeignId == 0" );
                     }
 
                     if ( !string.IsNullOrEmpty( flatRecord.Campus ) && campusLookup.ContainsKey( flatRecord.Campus ) )
@@ -310,9 +394,7 @@ namespace RockWeb.Blocks.Utility
                 }
             }
 
-            var familiesToInsert = familiesLookup.Where( a => a.Value.Id == 0 ).Select( a => a.Value ).ToList();
-
-            rockContext.BulkInsert( familiesToInsert );
+            return personImports;
         }
 
         /// <summary>

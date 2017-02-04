@@ -28,7 +28,7 @@ namespace Rock.BulkUpdate
         /// <value>
         /// The family foreign identifier.
         /// </value>
-        public int FamilyForeignID { get; set; }
+        public int FamilyForeignId { get; set; }
 
         /// <summary>
         /// Gets or sets the group role identifier.
