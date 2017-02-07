@@ -32,6 +32,8 @@ using Rock.Attribute;
 using CsvHelper;
 using CsvHelper.Configuration;
 using Rock.BulkUpdate;
+using System.Diagnostics;
+using System.Text;
 
 namespace RockWeb.Blocks.Utility
 {
@@ -99,24 +101,37 @@ namespace RockWeb.Blocks.Utility
 
         protected void btnGo_Click( object sender, EventArgs e )
         {
+            Stopwatch stopwatchTotal = Stopwatch.StartNew();
+            Stopwatch stopwatch = Stopwatch.StartNew();
             RockContext rockContext = new RockContext();
-            var personService = new PersonService( rockContext );
+            var qryAllPersons = new PersonService( rockContext ).Queryable( true, true );
             var groupService = new GroupService( rockContext );
+            var groupMemberService = new GroupMemberService( rockContext );
 
             var familyGroupType = GroupTypeCache.GetFamilyGroupType();
             int familyGroupTypeId = familyGroupType.Id;
 
-            //int familyGroupTypeId, personRecordTypeValueId;
+            // int familyGroupTypeId, personRecordTypeValueId;
             Dictionary<int, Group> familiesLookup;
             Dictionary<int, Person> personLookup;
+
+            StringBuilder sbStats = new StringBuilder();
 
             // dictionary of Families. KEY is FamilyForeignId
             familiesLookup = groupService.Queryable().AsNoTracking().Where( a => a.GroupTypeId == familyGroupTypeId && a.ForeignId.HasValue )
                 .ToList().ToDictionary( k => k.ForeignId.Value, v => v );
-            personLookup = personService.Queryable().AsNoTracking().Where( a => a.ForeignId.HasValue )
+            personLookup = qryAllPersons.AsNoTracking().Where( a => a.ForeignId.HasValue )
                 .ToList().ToDictionary( k => k.ForeignId.Value, v => v );
 
+            stopwatch.Stop();
+            sbStats.AppendFormat( "[{2}ms] GetLookups familiesLookupCount:{0}, personLookupCount:{1}\n", familiesLookup.Count, personLookup.Count, stopwatch.Elapsed.TotalMilliseconds );
+            stopwatch.Restart();
+
             List<PersonImport> personImports = GetPersonImportsFromCSVFile();
+
+            stopwatch.Stop();
+            sbStats.AppendFormat( "[{1}ms] GetPersonImports personImportsCount:{0}\n", personImports.Count, stopwatch.Elapsed.TotalMilliseconds );
+            stopwatch.Restart();
 
             foreach ( var personImport in personImports )
             {
@@ -155,9 +170,15 @@ namespace RockWeb.Blocks.Utility
                     person.ReviewReasonValueId = personImport.ReviewReasonValueId;
                     person.IsDeceased = personImport.IsDeceased;
                     person.TitleValueId = personImport.TitleValueId;
-                    person.FirstName = personImport.FirstName;
-                    person.NickName = personImport.NickName;
-                    person.LastName = personImport.LastName;
+                    person.FirstName = personImport.FirstName.FixCase();
+                    person.NickName = personImport.NickName.FixCase();
+
+                    if ( string.IsNullOrWhiteSpace( person.NickName ) )
+                    {
+                        person.NickName = person.FirstName;
+                    }
+
+                    person.LastName = personImport.LastName.FixCase();
                     person.SuffixValueId = personImport.SuffixValueId;
                     person.BirthDay = personImport.BirthDay;
                     person.BirthMonth = personImport.BirthMonth;
@@ -177,17 +198,110 @@ namespace RockWeb.Blocks.Utility
                 }
             }
 
+            stopwatch.Stop();
+            sbStats.AppendFormat( "[{0}ms] BuildImportLists\n", stopwatch.Elapsed.TotalMilliseconds );
+            stopwatch.Restart();
+
+            double buildImportListsMS = stopwatch.Elapsed.TotalMilliseconds;
+            stopwatch.Restart();
+
             using ( var ts = new System.Transactions.TransactionScope() )
             {
-
+                // insert all the [Group] records
                 var familiesToInsert = familiesLookup.Where( a => a.Value.Id == 0 ).Select( a => a.Value ).ToList();
+
+                // insert all the [Person] records.
+                // NOTE: we are only inserting the [Person] record, not the PersonAlias or GroupMember records yet
                 var personsToInsert = personLookup.Where( a => a.Value.Id == 0 ).Select( a => a.Value ).ToList();
 
                 rockContext.BulkInsert( familiesToInsert );
+
+                stopwatch.Stop();
+                sbStats.AppendFormat( "[{1}ms] BulkInsert Families, familiesToInsert {0}\n", familiesToInsert.Count, stopwatch.Elapsed.TotalMilliseconds );
+                stopwatch.Restart();
+
                 rockContext.BulkInsert( personsToInsert );
+                stopwatch.Stop();
+                sbStats.AppendFormat( "[{1}ms] BulkInsert Persons, personsToInsert {0}\n", personsToInsert.Count, stopwatch.Elapsed.TotalMilliseconds );
+                stopwatch.Restart();
 
                 ts.Complete();
             };
+
+            // Make sure everybody has a PersonAlias
+            PersonAliasService personAliasService = new PersonAliasService( rockContext );
+            var personAliasServiceQry = personAliasService.Queryable();
+            List<PersonAlias> personAliasesToInsert = qryAllPersons.Where( p => p.ForeignId.HasValue && !p.Aliases.Any() && !personAliasServiceQry.Any( pa => pa.AliasPersonId == p.Id ) )
+                .Select( x => new { x.Id, x.Guid } )
+                .ToList()
+                .Select( person => new PersonAlias { AliasPersonId = person.Id, AliasPersonGuid = person.Guid, PersonId = person.Id } ).ToList();
+
+            stopwatch.Stop();
+            sbStats.AppendFormat( "[{1}ms] Get personAliasesToInsert, personAliasesToInsert {0}\n", personAliasesToInsert.Count, stopwatch.Elapsed.TotalMilliseconds );
+            stopwatch.Restart();
+
+            rockContext.BulkInsert( personAliasesToInsert );
+            stopwatch.Stop();
+            sbStats.AppendFormat( "[{1}ms] BulkInsert personAliasesToInsert, personAliasesToInsert {0}\n", personAliasesToInsert.Count, stopwatch.Elapsed.TotalMilliseconds );
+            stopwatch.Restart();
+
+            // get the person Ids along with the PersonImport and GroupMember record
+            var personsIdsForPersonImport = from p in qryAllPersons.AsNoTracking().Where( a => a.ForeignId.HasValue ).Select( a => new { a.Id, a.ForeignId } ).ToList()
+                                            join pi in personImports on p.ForeignId equals pi.PersonForeignId
+                                            join f in groupService.Queryable().Where( a => a.ForeignId.HasValue ).Select( a => new { a.Id, a.ForeignId } ).ToList() on pi.FamilyForeignId equals f.ForeignId
+                                            join gm in groupMemberService.Queryable( true ).Select( a => new { a.Id, a.PersonId } ) on p.Id equals gm.PersonId into gmj
+                                            from gm in gmj.DefaultIfEmpty()
+                                            select new
+                                            {
+                                                PersonId = p.Id,
+                                                PersonImport = pi,
+                                                FamilyId = f.Id,
+                                                GroupMemberId = gm != null ? (int?)gm.Id : null
+                                            };
+
+            // Make the GroupMember records for all the imported person (unless they are already have a groupmember record for the family)
+            var groupMemberRecordsToInsert = from ppi in personsIdsForPersonImport
+                                             where ppi.GroupMemberId == null
+                                             select new GroupMember
+                                             {
+                                                 PersonId = ppi.PersonId,
+                                                 GroupRoleId = ppi.PersonImport.GroupRoleId,
+                                                 GroupId = ppi.FamilyId,
+                                                 GroupMemberStatus = GroupMemberStatus.Active
+                                             };
+
+            var groupMemberRecordsToInsertList = groupMemberRecordsToInsert.ToList();
+            stopwatch.Stop();
+            sbStats.AppendFormat( "[{1}ms] Get groupMemberRecordsToInsertList, groupMemberRecordsToInsertList {0}ms\n", groupMemberRecordsToInsertList.Count, stopwatch.Elapsed.TotalMilliseconds );
+            stopwatch.Restart();
+
+            rockContext.BulkInsert( groupMemberRecordsToInsert );
+            stopwatch.Stop();
+            sbStats.AppendFormat( "[{1}ms] BulkInsert groupMemberRecordsToInsertList, groupMemberRecordsToInsertList {0}\n", groupMemberRecordsToInsertList.Count, stopwatch.Elapsed.TotalMilliseconds );
+            stopwatch.Restart();
+
+
+            stopwatchTotal.Stop();
+            sbStats.AppendFormat( "\n\nTotal: [{0}ms] \n", stopwatchTotal.Elapsed.TotalMilliseconds );
+
+            nbResults.Text = sbStats.ToString().ConvertCrLfToHtmlBr();
+        }
+
+        /// <summary>
+        /// Handles the Click event of the btnCleanup control.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        protected void btnCleanup_Click( object sender, EventArgs e )
+        {
+            var rockContext = new RockContext();
+            rockContext.Database.ExecuteSqlCommand( "DELETE FROM [PersonViewed] where TargetPersonAliasId in (SELECT ID FROM [PersonAlias] where [PersonId] in (SELECT ID FROM [Person] where [ForeignId] is not null))" );
+            rockContext.Database.ExecuteSqlCommand( "DELETE FROM [PersonAlias] where [PersonId] in (SELECT ID FROM [Person] where [ForeignId] is not null)" );
+            rockContext.Database.ExecuteSqlCommand( "DELETE FROM [GroupMember] where [PersonId] in (SELECT ID FROM [Person] where [ForeignId] is not null)" );
+            rockContext.Database.ExecuteSqlCommand( "DELETE FROM [Person] where [ForeignId] is not null" );
+            rockContext.Database.ExecuteSqlCommand( "DELETE FROM [Group] where [ForeignId] is not null" );
+
+            nbResults.Text = "Cleanup complete";
         }
 
         /// <summary>
@@ -226,14 +340,23 @@ namespace RockWeb.Blocks.Utility
             var personImports = new List<PersonImport>();
             var campusLookup = CampusCache.All().ToDictionary( k => k.Name, v => v.Id );
 
+
             var fileName = Server.MapPath( "~/App_Data/export_individuals.csv" );
             using ( var fileStream = File.OpenText( fileName ) )
             {
                 CsvReader csv = new CsvReader( fileStream );
                 csv.Configuration.HasHeaderRecord = true;
-                csv.Configuration.IgnoreHeaderWhiteSpace = true;
-                csv.Configuration.IsHeaderCaseSensitive = false;
+                csv.Configuration.PrepareHeaderForMatch = ( h ) =>
+                {
+                    return h.RemoveSpaces();
+                };
+
+                //csv.Configuration.IgnoreHeaderWhiteSpace = true;
+                //csv.Configuration.IsHeaderCaseSensitive = false;
+                //csv.Configuration.BufferSize = 999999;
                 csv.Configuration.RegisterClassMap<ImportUpdateRowMap>();
+
+                csv.Configuration.ThrowOnBadData = true;
                 csv.Configuration.BadDataCallback = ( s ) =>
                 {
                     System.Diagnostics.Debug.WriteLine( s );
@@ -248,7 +371,6 @@ namespace RockWeb.Blocks.Utility
                         GroupRoleId = adultRoleId,
                         GivingIndividually = false,
                         RecordTypeValueId = personRecordTypeValueId,
-
                     };
 
                     if ( personImport.PersonForeignId == 0 || personImport.FamilyForeignId == 0 )
@@ -287,8 +409,18 @@ namespace RockWeb.Blocks.Utility
                         personImport.BirthYear = birthDate.Value.Year;
                     }
 
-                    personImport.Gender = flatRecord.Gender.ConvertToEnumOrNull<Gender>() ?? Gender.Unknown;
-
+                    if ( flatRecord.Gender.Equals( "Male", StringComparison.OrdinalIgnoreCase ) || flatRecord.Gender.Equals( "M", StringComparison.OrdinalIgnoreCase ) )
+                    {
+                        personImport.Gender = Gender.Male;
+                    }
+                    else if ( flatRecord.Gender.Equals( "Female", StringComparison.OrdinalIgnoreCase ) || flatRecord.Gender.Equals( "F", StringComparison.OrdinalIgnoreCase ) )
+                    {
+                        personImport.Gender = Gender.Female;
+                    }
+                    else
+                    {
+                        personImport.Gender = Gender.Unknown;
+                    }
 
                     if ( flatRecord.MaritalStatus.Equals( "Married", StringComparison.OrdinalIgnoreCase ) )
                     {
@@ -853,5 +985,7 @@ namespace RockWeb.Blocks.Utility
                 Map( m => m.Sync_ID ).Name( "SyncID" );
             }
         }
+
+
     }
 }

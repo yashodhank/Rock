@@ -1446,7 +1446,7 @@ namespace Rock.Data
 
         /// <summary>
         /// Use SqlBulkInsert to insert records.
-        /// WARNING: This will bypass the Rock and EF Framework, as may permanently disable contraints on the SQL Table, so be careful!
+        /// WARNING: This will bypass the Rock and EF Framework, so be careful!
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="records">The records.</param>

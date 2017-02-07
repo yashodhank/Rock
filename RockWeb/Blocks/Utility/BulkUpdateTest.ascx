@@ -11,7 +11,10 @@
             
             <div class="panel-body">
                 <asp:LinkButton ID="btnGo" runat="server" CssClass="btn btn-primary" Text="Go" OnClick="btnGo_Click" />
+                <asp:LinkButton ID="btnCleanup" runat="server" CssClass="btn btn-default" Text="Cleanup" OnClick="btnCleanup_Click" />
             </div>
+
+            <Rock:NotificationBox ID="nbResults" runat="server" NotificationBoxType="Success" />
         
         </asp:Panel>
 
