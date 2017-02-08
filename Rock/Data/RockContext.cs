@@ -1450,9 +1450,18 @@ namespace Rock.Data
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="records">The records.</param>
-        public void BulkInsert<T>( IEnumerable<T> records ) where T : class, IEntity
+        public void BulkInsert<T>( IEnumerable<T> records, bool useSqlBulkCopy = true ) where T : class, IEntity
         {
-            EntityFramework.Utilities.EFBatchOperation.For( this, this.Set<T>() ).InsertAll( records );
+            if ( useSqlBulkCopy )
+            {
+                EntityFramework.Utilities.EFBatchOperation.For( this, this.Set<T>() ).InsertAll( records );
+            }
+            else
+            {
+                this.Configuration.ValidateOnSaveEnabled = false;
+                this.Set<T>().AddRange( records );
+                this.SaveChanges( true );
+            }
         }
 
         /// <summary>

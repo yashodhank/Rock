@@ -124,13 +124,13 @@ namespace RockWeb.Blocks.Utility
                 .ToList().ToDictionary( k => k.ForeignId.Value, v => v );
 
             stopwatch.Stop();
-            sbStats.AppendFormat( "[{2}ms] GetLookups familiesLookupCount:{0}, personLookupCount:{1}\n", familiesLookup.Count, personLookup.Count, stopwatch.Elapsed.TotalMilliseconds );
+            sbStats.AppendFormat( "[{2}ms] Get {0} family and {1} person lookups\n", familiesLookup.Count, personLookup.Count, stopwatch.Elapsed.TotalMilliseconds );
             stopwatch.Restart();
 
             List<PersonImport> personImports = GetPersonImportsFromCSVFile();
 
             stopwatch.Stop();
-            sbStats.AppendFormat( "[{1}ms] GetPersonImports personImportsCount:{0}\n", personImports.Count, stopwatch.Elapsed.TotalMilliseconds );
+            sbStats.AppendFormat( "[{1}ms] Get {0} PersonImport records from CSV File\n", personImports.Count, stopwatch.Elapsed.TotalMilliseconds );
             stopwatch.Restart();
 
             foreach ( var personImport in personImports )
@@ -178,6 +178,11 @@ namespace RockWeb.Blocks.Utility
                         person.NickName = person.FirstName;
                     }
 
+                    if ( string.IsNullOrWhiteSpace( person.FirstName ) )
+                    {
+                        person.FirstName = person.NickName;
+                    }
+
                     person.LastName = personImport.LastName.FixCase();
                     person.SuffixValueId = personImport.SuffixValueId;
                     person.BirthDay = personImport.BirthDay;
@@ -204,6 +209,7 @@ namespace RockWeb.Blocks.Utility
 
             double buildImportListsMS = stopwatch.Elapsed.TotalMilliseconds;
             stopwatch.Restart();
+            bool useSqlBulkCopy = true;
 
             using ( var ts = new System.Transactions.TransactionScope() )
             {
@@ -214,15 +220,41 @@ namespace RockWeb.Blocks.Utility
                 // NOTE: we are only inserting the [Person] record, not the PersonAlias or GroupMember records yet
                 var personsToInsert = personLookup.Where( a => a.Value.Id == 0 ).Select( a => a.Value ).ToList();
 
-                rockContext.BulkInsert( familiesToInsert );
+                rockContext.BulkInsert( familiesToInsert, useSqlBulkCopy );
 
                 stopwatch.Stop();
-                sbStats.AppendFormat( "[{1}ms] BulkInsert Families, familiesToInsert {0}\n", familiesToInsert.Count, stopwatch.Elapsed.TotalMilliseconds );
+                sbStats.AppendFormat( "[{1}ms] BulkInsert {0} family(Group) records\n", familiesToInsert.Count, stopwatch.Elapsed.TotalMilliseconds );
                 stopwatch.Restart();
 
-                rockContext.BulkInsert( personsToInsert );
+                try
+                {
+                    rockContext.BulkInsert( personsToInsert, useSqlBulkCopy );
+
+                    // TODO: Figure out a good way to handle database errors since SqlBulkCopy doesn't tell you which record failed.  Maybe do it like this where we catch the exception, rollback to a EF AddRange, and then report which record(s) had the problem
+                }
+                catch
+                {
+                    try
+                    {
+                        // do it the EF AddRange which is slower, but it will help us determine which record fails
+                        rockContext.BulkInsert( personsToInsert, false );
+                    }
+                    catch (System.Data.Entity.Infrastructure.DbUpdateException dex)
+                    {
+                        nbResults.Text = string.Empty;
+                        foreach ( var entry in dex.Entries )
+                        {
+                            var errorRecord = (entry.Entity as IEntity );
+                            nbResults.NotificationBoxType = NotificationBoxType.Danger;
+                            nbResults.Text += string.Format( "Error on record with ForeignId: {0}, value: {1}, Error:{2}\n", errorRecord.ForeignId, errorRecord.ToString(), dex.GetBaseException().Message );
+                        }
+
+                        return;
+                    }
+                }
+
                 stopwatch.Stop();
-                sbStats.AppendFormat( "[{1}ms] BulkInsert Persons, personsToInsert {0}\n", personsToInsert.Count, stopwatch.Elapsed.TotalMilliseconds );
+                sbStats.AppendFormat( "[{1}ms] BulkInsert {0} Person records\n", personsToInsert.Count, stopwatch.Elapsed.TotalMilliseconds );
                 stopwatch.Restart();
 
                 ts.Complete();
@@ -237,12 +269,12 @@ namespace RockWeb.Blocks.Utility
                 .Select( person => new PersonAlias { AliasPersonId = person.Id, AliasPersonGuid = person.Guid, PersonId = person.Id } ).ToList();
 
             stopwatch.Stop();
-            sbStats.AppendFormat( "[{1}ms] Get personAliasesToInsert, personAliasesToInsert {0}\n", personAliasesToInsert.Count, stopwatch.Elapsed.TotalMilliseconds );
+            sbStats.AppendFormat( "[{1}ms] Get {0} PersonAliases to insert\n", personAliasesToInsert.Count, stopwatch.Elapsed.TotalMilliseconds );
             stopwatch.Restart();
 
-            rockContext.BulkInsert( personAliasesToInsert );
+            rockContext.BulkInsert( personAliasesToInsert, useSqlBulkCopy );
             stopwatch.Stop();
-            sbStats.AppendFormat( "[{1}ms] BulkInsert personAliasesToInsert, personAliasesToInsert {0}\n", personAliasesToInsert.Count, stopwatch.Elapsed.TotalMilliseconds );
+            sbStats.AppendFormat( "[{1}ms] BulkInsert{0} PersonAliases\n", personAliasesToInsert.Count, stopwatch.Elapsed.TotalMilliseconds );
             stopwatch.Restart();
 
             // get the person Ids along with the PersonImport and GroupMember record
@@ -256,12 +288,12 @@ namespace RockWeb.Blocks.Utility
                                                 PersonId = p.Id,
                                                 PersonImport = pi,
                                                 FamilyId = f.Id,
-                                                GroupMemberId = gm != null ? (int?)gm.Id : null
+                                                HasGroupMemberRecord = gm != null
                                             };
 
             // Make the GroupMember records for all the imported person (unless they are already have a groupmember record for the family)
             var groupMemberRecordsToInsert = from ppi in personsIdsForPersonImport
-                                             where ppi.GroupMemberId == null
+                                             where !ppi.HasGroupMemberRecord
                                              select new GroupMember
                                              {
                                                  PersonId = ppi.PersonId,
@@ -272,18 +304,87 @@ namespace RockWeb.Blocks.Utility
 
             var groupMemberRecordsToInsertList = groupMemberRecordsToInsert.ToList();
             stopwatch.Stop();
-            sbStats.AppendFormat( "[{1}ms] Get groupMemberRecordsToInsertList, groupMemberRecordsToInsertList {0}ms\n", groupMemberRecordsToInsertList.Count, stopwatch.Elapsed.TotalMilliseconds );
+            sbStats.AppendFormat( "[{1}ms] Get groupMemberRecordsToInsertList {0}\n", groupMemberRecordsToInsertList.Count, stopwatch.Elapsed.TotalMilliseconds );
             stopwatch.Restart();
 
-            rockContext.BulkInsert( groupMemberRecordsToInsert );
+            rockContext.BulkInsert( groupMemberRecordsToInsert, useSqlBulkCopy );
             stopwatch.Stop();
-            sbStats.AppendFormat( "[{1}ms] BulkInsert groupMemberRecordsToInsertList, groupMemberRecordsToInsertList {0}\n", groupMemberRecordsToInsertList.Count, stopwatch.Elapsed.TotalMilliseconds );
+            sbStats.AppendFormat( "[{1}ms] BulkInsert groupMemberRecordsToInsertList {0}\n", groupMemberRecordsToInsertList.Count, stopwatch.Elapsed.TotalMilliseconds );
             stopwatch.Restart();
 
+            // TODO: Addresses
+            List<Location> locationsToImport = new List<Location>();
+            List<GroupLocation> groupLocationsToImport = new List<GroupLocation>();
+
+            var locationCreatedDateTimeStart = RockDateTime.Now;
+            foreach (var familyRecord in personsIdsForPersonImport.GroupBy(a => a.FamilyId))
+            {
+
+                // get the distinct addresses for each family in our import
+                var familyAddresses = familyRecord.SelectMany(a => a.PersonImport.Addresses).DistinctBy(a => new { a.Street1, a.Street2, a.City, a.County, a.State, a.Country, a.PostalCode });
+
+                foreach ( var address in familyAddresses )
+                {
+                    GroupLocation groupLocation = new GroupLocation();
+                    groupLocation.GroupLocationTypeValueId = address.GroupLocationTypeValueId;
+                    groupLocation.GroupId = familyRecord.Key;
+                    groupLocation.IsMailingLocation = address.IsMailingLocation;
+                    groupLocation.IsMappedLocation = address.IsMappedLocation;
+                    
+                    Location location = new Location();
+                    
+                    location.Street1 = address.Street1;
+                    location.Street2 = address.Street2;
+                    location.City = address.City;
+                    location.County = address.County;
+                    location.State = address.State;
+                    location.Country = address.Country;
+                    location.PostalCode = address.PostalCode;
+                    location.CreatedDateTime = locationCreatedDateTimeStart;
+
+                    // give the Location a Guid, and store a reference to which Location is associated with the GroupLocation record. Then we'll match them up later and do the bulk insert
+                    location.Guid = Guid.NewGuid();
+                    groupLocation.Location = location;
+
+                    groupLocationsToImport.Add( groupLocation );
+                    locationsToImport.Add( location );
+                }
+            }
+
+            stopwatch.Stop();
+            sbStats.AppendFormat( "[{1}ms] Prepare {0} Location/GroupLocation records for BulkInsert\n", locationsToImport.Count, stopwatch.Elapsed.TotalMilliseconds );
+            stopwatch.Restart();
+
+            rockContext.BulkInsert( locationsToImport, useSqlBulkCopy );
+
+            stopwatch.Stop();
+            sbStats.AppendFormat( "[{1}ms] BulkInsert {0} Location records\n", locationsToImport.Count, stopwatch.Elapsed.TotalMilliseconds );
+            stopwatch.Restart();
+
+            var locationIdLookup = new LocationService( rockContext ).Queryable().Select( a => new { a.Id, a.Guid } ).ToList().ToDictionary( k => k.Guid, v => v.Id );
+            foreach( var groupLocation in groupLocationsToImport)
+            {
+                groupLocation.LocationId = locationIdLookup[groupLocation.Location.Guid];
+            }
+
+            stopwatch.Stop();
+            sbStats.AppendFormat( "[{1}ms] Prepare {0} GroupLocation records with LocationId lookup\n", groupLocationsToImport.Count, stopwatch.Elapsed.TotalMilliseconds );
+            stopwatch.Restart();
+
+            rockContext.BulkInsert( groupLocationsToImport );
+
+            stopwatch.Stop();
+            sbStats.AppendFormat( "[{1}ms] BulkInsert {0} GroupLocation records\n", groupLocationsToImport.Count, stopwatch.Elapsed.TotalMilliseconds );
+            stopwatch.Restart();
+
+
+            // TODO: PhoneNumbers
+            // TODO: Attributes
 
             stopwatchTotal.Stop();
             sbStats.AppendFormat( "\n\nTotal: [{0}ms] \n", stopwatchTotal.Elapsed.TotalMilliseconds );
 
+            nbResults.NotificationBoxType = NotificationBoxType.Success;
             nbResults.Text = sbStats.ToString().ConvertCrLfToHtmlBr();
         }
 
@@ -299,6 +400,22 @@ namespace RockWeb.Blocks.Utility
             rockContext.Database.ExecuteSqlCommand( "DELETE FROM [PersonAlias] where [PersonId] in (SELECT ID FROM [Person] where [ForeignId] is not null)" );
             rockContext.Database.ExecuteSqlCommand( "DELETE FROM [GroupMember] where [PersonId] in (SELECT ID FROM [Person] where [ForeignId] is not null)" );
             rockContext.Database.ExecuteSqlCommand( "DELETE FROM [Person] where [ForeignId] is not null" );
+
+            // Delete Location (and cascade delete GroupLocation) records
+            rockContext.Database.ExecuteSqlCommand( @"
+DELETE
+FROM [Location]
+WHERE Id IN (
+		SELECT LocationId
+		FROM GroupLocation
+		WHERE GroupId IN (
+				SELECT Id
+				FROM [Group]
+				WHERE [ForeignId] IS NOT NULL
+				)
+		)" );
+
+
             rockContext.Database.ExecuteSqlCommand( "DELETE FROM [Group] where [ForeignId] is not null" );
 
             nbResults.Text = "Cleanup complete";
