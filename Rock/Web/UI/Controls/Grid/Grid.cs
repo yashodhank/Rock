@@ -2643,7 +2643,7 @@ namespace Rock.Web.UI.Controls
                      a.EntitySetId = entitySet.Id;
                  } );
 
-                EFBatchOperation.For( rockContext, rockContext.EntitySetItems ).InsertAll( entitySetItems );
+                rockContext.BulkInsert( entitySetItems );
 
                 return entitySet.Id;
             }

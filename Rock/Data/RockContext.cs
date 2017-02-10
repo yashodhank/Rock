@@ -1445,8 +1445,8 @@ namespace Rock.Data
         #endregion
 
         /// <summary>
-        /// Use SqlBulkInsert to insert records.
-        /// WARNING: This will bypass the Rock and EF Framework, so be careful!
+        /// Use SqlBulkInsert to quickly insert a large number records.
+        /// WARNING: This will bypass the Rock and a bunch of the EF Framework, so be careful!
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="records">The records.</param>
@@ -1454,6 +1454,7 @@ namespace Rock.Data
         {
             if ( useSqlBulkCopy )
             {
+                EntityFramework.Utilities.Configuration.SqlBulkCopyOptions = System.Data.SqlClient.SqlBulkCopyOptions.CheckConstraints;
                 EntityFramework.Utilities.EFBatchOperation.For( this, this.Set<T>() ).InsertAll( records );
             }
             else

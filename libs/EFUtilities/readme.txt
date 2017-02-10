@@ -1,2 +1,2 @@
-special build of EFUtilities from this Fork (not the Nuget Package)
-https://github.com/maze0417/EntityFramework.Utilities
+NOTE: this is a special build of EFUtilities from our Fork (not the Nuget Package)
+https://github.com/SparkDevNetwork/EntityFramework.Utilities
