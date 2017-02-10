@@ -502,11 +502,11 @@ WHERE Id IN (
 
                     if ( flatRecord.Inactive.Equals( "Inactive", StringComparison.OrdinalIgnoreCase ) )
                     {
-                        personImport.RecordStatusReasonValueId = recordStatusValueInActiveId;
+                        personImport.RecordStatusValueId = recordStatusValueInActiveId;
                     }
                     else
                     {
-                        personImport.RecordStatusReasonValueId = recordStatusValueActiveId;
+                        personImport.RecordStatusValueId = recordStatusValueActiveId;
                     }
 
                     personImport.ConnectionStatusValueId = connectionStatusValueAttendeeId;
